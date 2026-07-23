@@ -1,11 +1,11 @@
 [server]
-# Enable SSL/HTTPS
-sslCertFile = "./certs/zubeir-ai-server.crt"
-sslKeyFile = "./certs/zubeir-ai-server.key"
-
-# Server configuration
-port = 7860
+# Port 8501 is required for Streamlit Community Cloud health checks
+port = 8501
 headless = true
+
+# Disable custom SSL on Cloud (Streamlit Cloud manages SSL for you)
+# sslCertFile = "./certs/zubeir-ai-server.crt"
+# sslKeyFile = "./certs/zubeir-ai-server.key"
 
 [client]
 showErrorDetails = true
