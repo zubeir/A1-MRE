@@ -1,0 +1,11 @@
+[server]
+# Enable SSL/HTTPS
+sslCertFile = "./certs/zubeir-ai-server.crt"
+sslKeyFile = "./certs/zubeir-ai-server.key"
+
+# Server configuration
+port = 7860
+headless = true
+
+[client]
+showErrorDetails = true

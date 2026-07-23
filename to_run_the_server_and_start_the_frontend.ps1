@@ -1,0 +1,4 @@
+$sl = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'streamlit.*7860' }; if ($sl) { $sl | ForEach-Object { Stop-Process -Id $_.ProcessId -Force } }
+$py = (Resolve-Path .\.venv\Scripts\python.exe).Path
+Start-Process -FilePath $py -ArgumentList '-m','streamlit','run','.\\app.py','--server.port','7860','--server.headless','true' -RedirectStandardOutput '.\\streamlit.log' -RedirectStandardError '.\\streamlit.err.log' -WindowStyle Hidden -PassThru | Out-Null
+Start-Process -FilePath $py -ArgumentList (Resolve-Path .\agent.py).Path, '--interval', '1200' -RedirectStandardOutput '.\\agent.log' -RedirectStandardError '.\\agent.err.log' -WindowStyle Hidden -PassThru | Out-Null

@@ -1,0 +1,34 @@
+<div class="cleo-form-card">
+  <div class="form-header">
+    <h3>Shift Availability</h3>
+  </div>
+  
+  <div class="form-section">
+    <label class="section-label">Available Options</label>
+    
+    <div class="shift-options-grid">
+      <!-- Option 1 -->
+      <label class="shift-option">
+        <input type="checkbox" name="shift" value="day_fixed" class="hidden-checkbox">
+        <span class="option-box">Day-Shift (Fixed)</span>
+      </label>
+
+      <!-- Option 2 -->
+      <label class="shift-option">
+        <input type="checkbox" name="shift" value="evening_fixed" class="hidden-checkbox">
+        <span class="option-box">Evening-Shift</span>
+      </label>
+
+      <!-- Option 3 -->
+      <label class="shift-option">
+        <input type="checkbox" name="shift" value="compressed" class="hidden-checkbox">
+        <span class="option-box">Compressed (4x10s)</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Button styling matches your greyed out/active state -->
+  <button id="confirmShiftsBtn" class="form-submit-btn disabled" disabled>
+    ✓ Confirm Availability
+  </button>
+</div>
