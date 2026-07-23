@@ -70,22 +70,36 @@ def get_dow_tickers():
 
 
 def get_nasdaq_tickers():
-    """Read Nasdaq 100 tickers from Wikipedia table."""
-    logging.info("Fetching Nasdaq 100 tickers from Wikipedia")
     url = "https://en.wikipedia.org/wiki/Nasdaq-100"
     try:
-        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-        resp.raise_for_status()
-        tables = pd.read_html(StringIO(resp.text))
-        df = tables[5]  # The table with components
-    except Exception:
         tables = pd.read_html(url)
-        df = tables[5]
-    symbols = df['Ticker'].tolist()
-    symbols = [s.replace('.', '-') for s in symbols]
-    logging.info(f"Found {len(symbols)} Nasdaq tickers")
-    return symbols
+        # Find the table that contains ticker/symbol info dynamically
+        df = None
+        for table in tables:
+            # Flatten columns if MultiIndex
+            if isinstance(table.columns, pd.MultiIndex):
+                table.columns = table.columns.get_level_values(-1)
+            
+            # Check for possible column names
+            for col in ['Ticker', 'Symbol', 'Ticker symbol']:
+                if col in table.columns:
+                    df = table
+                    ticker_col = col
+                    break
+            if df is not None:
+                break
 
+        if df is not None:
+            symbols = df[ticker_col].tolist()
+            symbols = [str(s).replace('.', '-') for s in symbols]
+            logging.info(f"Found {len(symbols)} Nasdaq tickers")
+            return symbols
+        else:
+            raise ValueError("Could not find Ticker/Symbol column in Wikipedia tables")
+
+    except Exception as e:
+        logging.error(f"Error fetching Nasdaq tickers: {e}")
+        return []
 
 def nearest_price_series(series, target_date):
     # series: pd.Series with datetime index
