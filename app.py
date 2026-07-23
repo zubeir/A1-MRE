@@ -36,16 +36,6 @@ PROSPECTUS_DIR = os.path.join(os.path.dirname(__file__), 'prospectus')
 
 import os
 import subprocess
-import streamlit as st  # Added missing import
-
-# Check if data or cache file exists
-if not os.path.exists("cache_data.pkl"):  # Make sure this matches your actual cache file name!
-    with st.spinner("Populating data cache..."):
-        subprocess.run(["python", "run_once.py"], check=True)
-        st.rerun()  # Recommended: reloads the page so the rest of app.py sees the new file
-
-import subprocess
-import streamlit as st
 
 # Add a button in the sidebar
 with st.sidebar:

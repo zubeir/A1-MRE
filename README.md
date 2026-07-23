@@ -53,14 +53,14 @@ To remove the "not secure" warning in your browser:
 .\to_run_the_server_and_start_the_frontend.ps1
 
 # Or run Streamlit directly:
-streamlit run app.py --server.port 7860 --server.address 0.0.0.0
+streamlit run app.py --server.port 8501 --server.headless true
 ```
 
 Access the dashboard:
-- Local (HTTP): http://localhost:7860
-- Local (HTTPS, if certs generated): https://localhost:7860
-- Network (HTTP): http://10.0.0.79:7860
-- Network (HTTPS, if certs generated): https://zubeir-ai-server:7860
+- Local (HTTP): http://localhost:8501
+- Local (HTTPS, if certs generated): https://localhost:8501
+- Network (HTTP): http://10.0.0.79:8501
+- Network (HTTPS, if certs generated): https://zubeir-ai-server:8501
 
 Notes and next steps:
 - `agent.py` downloads historic prices for the full S&P 500. That can take some seconds/minutes on first run.

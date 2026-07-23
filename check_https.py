@@ -1,5 +1,5 @@
 import requests
-hosts = ['https://localhost:7860','https://127.0.0.1:7860','https://10.0.0.79:7860']
+hosts = ['https://localhost:8501','https://127.0.0.1:8501','https://10.0.0.79:8501']
 for host in hosts:
     try:
         r = requests.get(host, verify=False, timeout=5)
