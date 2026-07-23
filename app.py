@@ -34,7 +34,13 @@ except Exception:
 CACHE_FILE = os.path.join(os.path.dirname(__file__), 'cache.json')
 PROSPECTUS_DIR = os.path.join(os.path.dirname(__file__), 'prospectus')
 
+import os
+import run_once  # Import your script as a module
 
+# Check if data or cache file exists
+if not os.path.exists("cache_data.pkl"):  # Replace with your actual cache file/folder check
+    with st.spinner("Populating data cache..."):
+        run_once.main()  # Call the main entry function in run_once.py
 
 import subprocess
 import streamlit as st
@@ -58,7 +64,7 @@ with st.sidebar:
             except subprocess.CalledProcessError as e:
                 st.error(f"Error running script:\n{e.stderr}")
 
-                
+
 
 def _find_pdf(preferred_path, keyword_patterns):
     if preferred_path and os.path.exists(preferred_path):
