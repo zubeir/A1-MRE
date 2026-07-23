@@ -34,6 +34,32 @@ except Exception:
 CACHE_FILE = os.path.join(os.path.dirname(__file__), 'cache.json')
 PROSPECTUS_DIR = os.path.join(os.path.dirname(__file__), 'prospectus')
 
+
+
+import subprocess
+import streamlit as st
+
+# Add a button in the sidebar
+with st.sidebar:
+    st.subheader("Admin Controls")
+    if st.button("Run Setup Script"):
+        with st.spinner("Running python run_once.py..."):
+            try:
+                # Run run_once.py as a subprocess
+                result = subprocess.run(
+                    ["python", "run_once.py"], 
+                    capture_output=True, 
+                    text=True, 
+                    check=True
+                )
+                st.success("Cache populated successfully!")
+                st.code(result.stdout)  # Optional: displays script output
+                st.rerun()  # Refresh the page to load updated cache
+            except subprocess.CalledProcessError as e:
+                st.error(f"Error running script:\n{e.stderr}")
+
+                
+
 def _find_pdf(preferred_path, keyword_patterns):
     if preferred_path and os.path.exists(preferred_path):
         return preferred_path
