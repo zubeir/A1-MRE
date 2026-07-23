@@ -1,5 +1,5 @@
 streamlit
-st-aggrid
+streamlit-aggrid
 yfinance
 pandas
 requests
