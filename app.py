@@ -1181,6 +1181,32 @@ if not rotation_df.empty:
     st.markdown('**Signal thresholds:** 🟢 **Invest** ≥ 70 &nbsp; | &nbsp; 🟡 **Hold / Watch** 40–69 &nbsp; | &nbsp; 🔴 **Drop** < 40')
 
     st.subheader('Rotation Scoring Table')
+    with st.expander('How to use each column for action', expanded=False):
+        st.markdown(
+            """
+            **Read the table from left to right:**
+
+            | Column | What it means | Action guidance |
+            |---|---|---|
+            | **Include in Top-10** | Your manual selection checkbox. | Select candidates you want reviewed for the next rotation; unchecked rows are excluded from the manual list. |
+            | **Ticker** | The stock symbol. | Use this to identify the security for research or execution. |
+            | **Sector** | The company’s sector. | Helps control concentration and compare candidates within the same industry group. |
+            | **Appearances (6m)** | Number of the last six monthly Top-10 cohorts containing the ticker. | Higher persistence suggests more durable leadership; low persistence means the candidate is newer or less consistent. |
+            | **MTD Status** | Current-month direction: Green positive, Yellow flat, Red negative. | Green supports holding or investing; Yellow warrants monitoring; Red is a reason to be cautious and investigate before adding. |
+            | **Sector Aligned** | Whether the ticker belongs to one of the current Top-3 sector leaders. | Yes provides confirmation from sector strength; No means the stock is moving against the current sector trend. |
+            | **Breakout** | Whether price is at or above the existing 52-week high. | Yes confirms a technical breakout; verify volume and risk before acting because breakouts can fail. |
+            | **Score** | Weighted composite from 0 to 100. | Use it to rank candidates: higher scores have stronger combined evidence, not guaranteed returns. |
+            | **Signal** | Score-based action category. | **Invest** ≥ 70, **Hold / Watch** 40–69, **Drop** < 40. Review the underlying columns before confirming. |
+
+            **Practical workflow:** prioritize **Invest** rows with strong persistence, positive MTD status,
+            sector alignment, and a breakout. Use **Hold / Watch** rows as a research list, and treat
+            **Drop** rows as candidates to leave out unless there is a documented exception.
+
+            This module ranks and documents candidates; it does not place trades automatically.
+            Confirm position sizing, liquidity, portfolio concentration, and your normal risk controls
+            before executing a rotation.
+            """
+        )
     filter_cols = st.columns([1, 1, 1, 1])
     with filter_cols[0]:
         signal_filter = st.multiselect('Signals', ['Invest', 'Hold / Watch', 'Drop'], default=['Invest', 'Hold / Watch', 'Drop'], key='rotation_signal_filter')
