@@ -1159,6 +1159,27 @@ if not rotation_df.empty:
     st.markdown(''.join(bars), unsafe_allow_html=True)
     st.caption('Bar color: 🟢 positive MTD, 🟡 flat MTD, 🔴 negative MTD.')
 
+    st.subheader('How the Rotation Score Is Calculated')
+    st.latex(r'\text{Score} = 0.4(\text{Persistence}) + 0.3(\text{MTD}) + 0.2(\text{Sector}) + 0.1(\text{Breakout})')
+    st.caption('Each component is scored from 0–100. The weights show the maximum points each component can contribute.')
+    explanation_cols = st.columns([1, 2])
+    with explanation_cols[0]:
+        explanation_ticker = st.selectbox('Explain candidate', rotation_df['Ticker'].tolist(), key='rotation_explanation_ticker')
+    explanation_row = rotation_df[rotation_df['Ticker'] == explanation_ticker].iloc[0]
+    component_data = pd.DataFrame({
+        'Component': ['Persistence', 'MTD status', 'Sector alignment', '52-week breakout'],
+        'Raw score': [explanation_row['appearance_score'], explanation_row['mtd_score'], explanation_row['sector_score'], explanation_row['breakout_score']],
+        'Weight': [0.4, 0.3, 0.2, 0.1],
+    })
+    component_data['Contribution'] = (component_data['Raw score'] * component_data['Weight']).round(2)
+    with explanation_cols[1]:
+        st.write(f"**{explanation_ticker} contribution to final score: {explanation_row['rotation_score']:.2f} / 100**")
+        st.bar_chart(component_data.set_index('Component')['Contribution'], horizontal=True, height=190)
+    component_data['Weight'] = component_data['Weight'].map(lambda value: f'{value:.0%}')
+    component_data['Raw score'] = component_data['Raw score'].round(0).astype(int)
+    st.dataframe(component_data, hide_index=True, use_container_width=True)
+    st.markdown('**Signal thresholds:** 🟢 **Invest** ≥ 70 &nbsp; | &nbsp; 🟡 **Hold / Watch** 40–69 &nbsp; | &nbsp; 🔴 **Drop** < 40')
+
     st.subheader('Rotation Scoring Table')
     filter_cols = st.columns([1, 1, 1, 1])
     with filter_cols[0]:
@@ -1206,7 +1227,8 @@ if not rotation_df.empty:
             record_rotation_confirmation(execution_rows, allocation_mode, os.path.join(os.path.dirname(__file__), 'data', 'rotation_history.json'))
             st.success('Rotation confirmed and added to data/rotation_history.json.')
 
-st.subheader('Top 10 MTD — Momentum Stocks from S&P500')
+current_month_name = (datetime.now(EAST_ZONE) if EAST_ZONE else datetime.now()).strftime('%B')
+st.subheader(f'Top 10 MTD — {current_month_name} Momentum Stocks from S&P500')
 
 with st.expander('How to interpret “Activity Signal” (proxy)', expanded=False):
     st.write('This is a proxy for unusually large participation, using daily volume statistics (not true block-trade prints).')
