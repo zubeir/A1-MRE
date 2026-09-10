@@ -36,6 +36,7 @@ PROSPECTUS_DIR = os.path.join(os.path.dirname(__file__), 'prospectus')
 
 import os
 import subprocess
+import sys
 
 # Add a button in the sidebar
 with st.sidebar:
@@ -45,10 +46,11 @@ with st.sidebar:
             try:
                 # Run run_once.py as a subprocess
                 result = subprocess.run(
-                    ["python", "run_once.py"], 
+                    [sys.executable, os.path.join(os.path.dirname(__file__), "run_once.py")],
                     capture_output=True, 
                     text=True, 
-                    check=True
+                    check=True,
+                    cwd=os.path.dirname(__file__),
                 )
                 st.success("Cache populated successfully!")
                 st.code(result.stdout)  # Optional: displays script output
