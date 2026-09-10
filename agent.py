@@ -59,11 +59,30 @@ def get_dow_tickers():
         resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
         resp.raise_for_status()
         tables = pd.read_html(StringIO(resp.text))
-        df = tables[1]  # The table with components
     except Exception:
         tables = pd.read_html(url)
-        df = tables[1]
-    symbols = df['Symbol'].tolist()
+    
+    # Find the table that contains ticker/symbol info dynamically
+    df = None
+    for table in tables:
+        # Flatten columns if MultiIndex
+        if isinstance(table.columns, pd.MultiIndex):
+            table.columns = table.columns.get_level_values(-1)
+        
+        # Check for possible column names
+        for col in ['Ticker', 'Symbol', 'Ticker symbol']:
+            if col in table.columns:
+                df = table
+                ticker_col = col
+                break
+        if df is not None:
+            break
+    
+    if df is None:
+        logging.error("Could not find DOW tickers table")
+        return []
+    
+    symbols = df[ticker_col].tolist()
     symbols = [s.replace('.', '-') for s in symbols]
     logging.info(f"Found {len(symbols)} DOW tickers")
     return symbols
