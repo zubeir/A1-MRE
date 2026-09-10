@@ -7,6 +7,7 @@ import math
 import os
 
 from agent import get_sp500_tickers, get_dow_tickers, get_nasdaq_tickers, compute_returns_for_tickers, enrich_top10, build_historical_top10, write_cache, compute_sector_favor, compute_sector_performance, project_price, compute_breakouts, enrich_breakouts
+from top10_rotation import score_rotation_candidates, select_rotation_tickers
 
 
 def _add_months(year, month, delta_months):
@@ -188,6 +189,15 @@ if __name__ == '__main__':
     five_months_ago_year, five_months_ago_month = _add_months(four_months_ago_year, four_months_ago_month, -1)
     six_months_ago_year, six_months_ago_month = _add_months(five_months_ago_year, five_months_ago_month, -1)
 
+    rotation_candidates = score_rotation_candidates(
+        final,
+        [last_month_top10, two_months_ago_top10, three_months_ago_top10,
+         four_months_ago_top10, five_months_ago_top10],
+        [row.get('sector') for row in sector_performance[:3]],
+        breakouts_sp500,
+    )
+    rotation_selection = select_rotation_tickers(rotation_candidates)
+
     write_cache(
         final,
         breakouts_sp500,
@@ -212,5 +222,7 @@ if __name__ == '__main__':
         six_months_ago_top10=six_months_ago_top10,
         six_months_ago_year=six_months_ago_year,
         six_months_ago_month=six_months_ago_month,
+        rotation_candidates=rotation_candidates,
+        rotation_selection=rotation_selection,
     )
     print('One-shot update completed, cache written.')

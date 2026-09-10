@@ -13,6 +13,7 @@ import io
 import base64
 import streamlit.components.v1 as components
 import calendar
+from top10_rotation import score_rotation_candidates, select_rotation_tickers, record_rotation_confirmation
 try:
     from st_aggrid import AgGrid
     from st_aggrid.grid_options_builder import GridOptionsBuilder
@@ -914,6 +915,8 @@ five_months_ago_month = payload.get('five_months_ago_month')
 six_months_ago_top10 = payload.get('six_months_ago_top10', [])
 six_months_ago_year = payload.get('six_months_ago_year')
 six_months_ago_month = payload.get('six_months_ago_month')
+rotation_candidates = payload.get('rotation_candidates', [])
+rotation_selection = payload.get('rotation_selection', [])
 
 def _month_label(year, month):
     try:
@@ -933,6 +936,19 @@ six_months_ago_label = _month_label(six_months_ago_year, six_months_ago_month)
 if not items:
     st.info('No data in cache yet. Waiting for agent to populate...')
     st.stop()
+
+# Quantified Top-10 rotation sleeve. Older caches are scored live so the panel
+# remains usable before the next agent/run_once refresh.
+if not rotation_candidates:
+    rotation_candidates = score_rotation_candidates(
+        items,
+        [last_month_top10, two_months_ago_top10, three_months_ago_top10,
+         four_months_ago_top10, five_months_ago_top10],
+        [row.get('sector') for row in sector_performance[:3]],
+        breakouts.get('sp500', []),
+    )
+if not rotation_selection:
+    rotation_selection = select_rotation_tickers(rotation_candidates)
 
 def _df_to_excel_bytes(df, sheet_name='Sheet1'):
     bio = io.BytesIO()
@@ -1121,6 +1137,74 @@ display_df = df[display_cols].copy()
 # Keep Ticker as a column for better visibility
 # if 'Ticker' in display_df.columns:
 #     display_df = display_df.set_index('Ticker')
+
+# Quantified Top-10 Momentum Sleeve
+st.header('Top-10 Momentum Sleeve — Rotation Candidates')
+rotation_df = pd.DataFrame(rotation_candidates)
+if not rotation_df.empty:
+    rotation_df['Ticker'] = rotation_df['symbol']
+    rotation_df['Sector'] = rotation_df.get('sector', '')
+    rotation_df['MTD Status'] = rotation_df['mtd_status'].map({'Green': '🟢 Green', 'Yellow': '🟡 Yellow', 'Red': '🔴 Red'})
+    rotation_df['Sector Aligned'] = rotation_df['sector_aligned'].map({True: 'Yes', False: 'No'})
+    rotation_df['Breakout'] = rotation_df['breakout_52w_high'].map({True: 'Yes', False: 'No'})
+    rotation_df['Score'] = rotation_df['rotation_score'].round(2)
+    rotation_df['Signal'] = rotation_df['rotation_signal']
+
+    st.subheader('Momentum Persistence')
+    colors = {'Green': '#22c55e', 'Yellow': '#eab308', 'Red': '#ef4444'}
+    bars = []
+    for _, row in rotation_df.sort_values('appearance_count_6m').iterrows():
+        width = max(2, float(row['appearance_count_6m']) / 6 * 100)
+        bars.append(f"<div style='display:flex;align-items:center;gap:8px;margin:4px 0'><b style='width:52px'>{row['Ticker']}</b><div style='height:18px;width:{width:.1f}%;background:{colors.get(row['mtd_status'], '#94a3b8')};border-radius:4px'></div><span>{int(row['appearance_count_6m'])}/6</span></div>")
+    st.markdown(''.join(bars), unsafe_allow_html=True)
+    st.caption('Bar color: 🟢 positive MTD, 🟡 flat MTD, 🔴 negative MTD.')
+
+    st.subheader('Rotation Scoring Table')
+    filter_cols = st.columns([1, 1, 1, 1])
+    with filter_cols[0]:
+        signal_filter = st.multiselect('Signals', ['Invest', 'Hold / Watch', 'Drop'], default=['Invest', 'Hold / Watch', 'Drop'], key='rotation_signal_filter')
+    with filter_cols[1]:
+        sectors = sorted([value for value in rotation_df['Sector'].dropna().unique() if str(value)])
+        sector_filter = st.multiselect('Sectors', sectors, default=sectors, key='rotation_sector_filter')
+    with filter_cols[2]:
+        breakout_only = st.checkbox('Show Breakout Only', key='rotation_breakout_only')
+    with filter_cols[3]:
+        invest_only = st.checkbox('Invest Only', key='rotation_invest_only')
+
+    filtered = rotation_df[rotation_df['Signal'].isin(signal_filter) & rotation_df['Sector'].isin(sector_filter)].sort_values(['Score', 'Ticker'], ascending=[False, True]).copy()
+    chosen_symbols = {row.get('symbol') for row in rotation_selection}
+    filtered['Include'] = filtered['symbol'].isin(chosen_symbols)
+    if breakout_only:
+        filtered = filtered[filtered['breakout_52w_high']]
+    if invest_only:
+        filtered = filtered[filtered['Signal'] == 'Invest']
+    table_cols = ['Include', 'Ticker', 'Sector', 'appearance_count_6m', 'MTD Status', 'Sector Aligned', 'Breakout', 'Score', 'Signal']
+    edited = st.data_editor(filtered[table_cols], hide_index=True, use_container_width=True, disabled=table_cols[1:], column_config={'Include': st.column_config.CheckboxColumn('Include in Top-10'), 'Score': st.column_config.NumberColumn('Score', format='%.2f')}, key='rotation_candidates_editor')
+    selected_symbols = edited.loc[edited['Include'], 'Ticker'].tolist() if not edited.empty else []
+    selected_rows = rotation_df[rotation_df['Ticker'].isin(selected_symbols)].sort_values('Score', ascending=False).to_dict('records')
+
+    st.subheader('Monthly Rotation Summary')
+    allocation_mode = st.radio('Allocation mode', ['Equal-weight', 'Score-weighted'], horizontal=True, key='rotation_allocation_mode')
+    fallback_rows = select_rotation_tickers(rotation_candidates, 10)
+    selected_names = {row['symbol'] for row in selected_rows}
+    execution_rows = (selected_rows + [row for row in fallback_rows if row['symbol'] not in selected_names])[:10]
+    summary_df = pd.DataFrame([{'Rank': index, 'Ticker': row['symbol'], 'Score': row['rotation_score'], 'Signal': row['rotation_signal']} for index, row in enumerate(execution_rows, 1)])
+    if not summary_df.empty:
+        if allocation_mode == 'Equal-weight':
+            summary_df['Allocation %'] = round(100 / len(summary_df), 2)
+        else:
+            total = summary_df['Score'].sum()
+            summary_df['Allocation %'] = (summary_df['Score'] / total * 100).round(2) if total else 0
+    st.dataframe(summary_df, hide_index=True, use_container_width=True)
+    export_rows = json.dumps(execution_rows, indent=2, default=str)
+    export_col, confirm_col = st.columns([1, 1])
+    with export_col:
+        st.download_button('Export JSON', export_rows, 'a1mre_rotation.json', 'application/json', key='rotation_json_export')
+        st.download_button('Export CSV', summary_df.to_csv(index=False), 'a1mre_rotation.csv', 'text/csv', key='rotation_csv_export')
+    with confirm_col:
+        if st.button('Confirm Rotation', type='primary', key='confirm_rotation'):
+            record_rotation_confirmation(execution_rows, allocation_mode, os.path.join(os.path.dirname(__file__), 'data', 'rotation_history.json'))
+            st.success('Rotation confirmed and added to data/rotation_history.json.')
 
 st.subheader('Top 10 MTD — Momentum Stocks from S&P500')
 

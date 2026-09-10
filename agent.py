@@ -17,6 +17,7 @@ import yfinance as yf
 import logging
 import numpy as np
 from io import StringIO
+from top10_rotation import score_rotation_candidates, select_rotation_tickers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "cache.json")
@@ -551,6 +552,8 @@ def write_cache(
     six_months_ago_top10=None,
     six_months_ago_year=None,
     six_months_ago_month=None,
+    rotation_candidates=None,
+    rotation_selection=None,
 ):
     payload = {
         'last_updated_utc': datetime.utcnow().isoformat() + 'Z',
@@ -578,7 +581,9 @@ def write_cache(
         'five_months_ago_month': five_months_ago_month,
         'six_months_ago_top10': six_months_ago_top10 or [],
         'six_months_ago_year': six_months_ago_year,
-        'six_months_ago_month': six_months_ago_month
+        'six_months_ago_month': six_months_ago_month,
+        'rotation_candidates': rotation_candidates or [],
+        'rotation_selection': rotation_selection or []
     }
     with open(CACHE_FILE, 'w', encoding='utf-8') as f:
         json.dump(payload, f, indent=2)
@@ -766,6 +771,15 @@ def run_loop(interval_seconds=60):
             five_months_ago_year, five_months_ago_month = _add_months(four_months_ago_year, four_months_ago_month, -1)
             six_months_ago_year, six_months_ago_month = _add_months(five_months_ago_year, five_months_ago_month, -1)
 
+            rotation_candidates = score_rotation_candidates(
+                final,
+                [last_month_top10, two_months_ago_top10, three_months_ago_top10,
+                 four_months_ago_top10, five_months_ago_top10],
+                [row.get('sector') for row in sector_performance[:3]],
+                breakouts_sp500,
+            )
+            rotation_selection = select_rotation_tickers(rotation_candidates)
+
             write_cache(
                 final,
                 breakouts_sp500,
@@ -790,6 +804,8 @@ def run_loop(interval_seconds=60):
                 six_months_ago_top10=six_months_ago_top10,
                 six_months_ago_year=six_months_ago_year,
                 six_months_ago_month=six_months_ago_month,
+                rotation_candidates=rotation_candidates,
+                rotation_selection=rotation_selection,
             )
         except Exception as e:
             logging.exception(f"Error in update loop: {e}")
