@@ -244,6 +244,12 @@ def compute_returns_for_tickers(tickers, history_days=400):
                 
                 three_months_ago_year, three_months_ago_month = _add_months(two_months_ago_year, two_months_ago_month, -1)
                 first_of_three_months_ago = pd.Timestamp(date(three_months_ago_year, three_months_ago_month, 1))
+                four_months_ago_year, four_months_ago_month = _add_months(three_months_ago_year, three_months_ago_month, -1)
+                first_of_four_months_ago = pd.Timestamp(date(four_months_ago_year, four_months_ago_month, 1))
+                five_months_ago_year, five_months_ago_month = _add_months(four_months_ago_year, four_months_ago_month, -1)
+                first_of_five_months_ago = pd.Timestamp(date(five_months_ago_year, five_months_ago_month, 1))
+                six_months_ago_year, six_months_ago_month = _add_months(five_months_ago_year, five_months_ago_month, -1)
+                first_of_six_months_ago = pd.Timestamp(date(six_months_ago_year, six_months_ago_month, 1))
 
                 # Use the last available close BEFORE the period start date as the baseline.
                 # This matches common market conventions for MTD/YTD when the first day of
@@ -260,6 +266,12 @@ def compute_returns_for_tickers(tickers, history_days=400):
                 
                 price_three_months_ago_start = previous_price_series(close, first_of_three_months_ago)
                 price_three_months_ago_end = previous_price_series(close, first_of_two_months_ago)
+                price_four_months_ago_start = previous_price_series(close, first_of_four_months_ago)
+                price_four_months_ago_end = previous_price_series(close, first_of_three_months_ago)
+                price_five_months_ago_start = previous_price_series(close, first_of_five_months_ago)
+                price_five_months_ago_end = previous_price_series(close, first_of_four_months_ago)
+                price_six_months_ago_start = previous_price_series(close, first_of_six_months_ago)
+                price_six_months_ago_end = previous_price_series(close, first_of_five_months_ago)
 
                 mtd = (last_price / float(price_mtd_start) - 1.0) if float(price_mtd_start) != 0 else None
                 qtd = (last_price / float(price_qtd_start) - 1.0) if float(price_qtd_start) != 0 else None
@@ -267,6 +279,9 @@ def compute_returns_for_tickers(tickers, history_days=400):
                 last_month = (float(price_last_month_end) / float(price_last_month_start) - 1.0) if float(price_last_month_start) != 0 else None
                 two_months_ago = (float(price_two_months_ago_end) / float(price_two_months_ago_start) - 1.0) if float(price_two_months_ago_start) != 0 else None
                 three_months_ago = (float(price_three_months_ago_end) / float(price_three_months_ago_start) - 1.0) if float(price_three_months_ago_start) != 0 else None
+                four_months_ago = (float(price_four_months_ago_end) / float(price_four_months_ago_start) - 1.0) if float(price_four_months_ago_start) != 0 else None
+                five_months_ago = (float(price_five_months_ago_end) / float(price_five_months_ago_start) - 1.0) if float(price_five_months_ago_start) != 0 else None
+                six_months_ago = (float(price_six_months_ago_end) / float(price_six_months_ago_start) - 1.0) if float(price_six_months_ago_start) != 0 else None
 
                 # compute recent daily log-returns stats (use last 60 trading days when available)
                 daily_ret = close.pct_change().dropna()
@@ -286,6 +301,9 @@ def compute_returns_for_tickers(tickers, history_days=400):
                     'last_month': None if last_month is None else float(last_month),
                     'two_months_ago': None if two_months_ago is None else float(two_months_ago),
                     'three_months_ago': None if three_months_ago is None else float(three_months_ago),
+                    'four_months_ago': None if four_months_ago is None else float(four_months_ago),
+                    'five_months_ago': None if five_months_ago is None else float(five_months_ago),
+                    'six_months_ago': None if six_months_ago is None else float(six_months_ago),
                     'week52_high': week52_high,
                     'mu': mu,
                     'sigma': sigma,
@@ -345,6 +363,35 @@ def enrich_top10(top_tickers, ticker_info):
         }
         enriched.append(entry)
     return enriched
+
+
+def build_historical_top10(returns_sp500, ticker_info, return_key):
+    """Build a historical top-10 list for a calculated return field."""
+    filtered = {
+        t: values for t, values in returns_sp500.items()
+        if values.get(return_key) is not None and not math.isnan(values.get(return_key))
+    }
+    sorted_items = sorted(filtered.items(), key=lambda item: item[1][return_key], reverse=True)[:10]
+    enriched = enrich_top10([ticker for ticker, _ in sorted_items], ticker_info)
+    result = []
+    for (ticker, values), meta in zip(sorted_items, enriched):
+        result.append({
+            'symbol': ticker,
+            'longName': meta.get('longName'),
+            'sector': meta.get('sector'),
+            'industry': meta.get('industry'),
+            return_key: values.get(return_key),
+            'last_month': values.get('last_month'),
+            'mtd': values.get('mtd'),
+            'ytd': values.get('ytd'),
+            'last_price': values.get('last_price'),
+            'volume': values.get('volume'),
+            'avg_volume_20d': values.get('avg_volume_20d'),
+            'rel_volume_20d': values.get('rel_volume_20d'),
+            'dollar_volume': values.get('dollar_volume'),
+            'vol_z_60d': values.get('vol_z_60d')
+        })
+    return result
 
 
 def project_price(last_price, mu, sigma, days, z=1.2816):
@@ -495,6 +542,15 @@ def write_cache(
     three_months_ago_top10=None,
     three_months_ago_year=None,
     three_months_ago_month=None,
+    four_months_ago_top10=None,
+    four_months_ago_year=None,
+    four_months_ago_month=None,
+    five_months_ago_top10=None,
+    five_months_ago_year=None,
+    five_months_ago_month=None,
+    six_months_ago_top10=None,
+    six_months_ago_year=None,
+    six_months_ago_month=None,
 ):
     payload = {
         'last_updated_utc': datetime.utcnow().isoformat() + 'Z',
@@ -513,7 +569,16 @@ def write_cache(
         'two_months_ago_month': two_months_ago_month,
         'three_months_ago_top10': three_months_ago_top10 or [],
         'three_months_ago_year': three_months_ago_year,
-        'three_months_ago_month': three_months_ago_month
+        'three_months_ago_month': three_months_ago_month,
+        'four_months_ago_top10': four_months_ago_top10 or [],
+        'four_months_ago_year': four_months_ago_year,
+        'four_months_ago_month': four_months_ago_month,
+        'five_months_ago_top10': five_months_ago_top10 or [],
+        'five_months_ago_year': five_months_ago_year,
+        'five_months_ago_month': five_months_ago_month,
+        'six_months_ago_top10': six_months_ago_top10 or [],
+        'six_months_ago_year': six_months_ago_year,
+        'six_months_ago_month': six_months_ago_month
     }
     with open(CACHE_FILE, 'w', encoding='utf-8') as f:
         json.dump(payload, f, indent=2)
@@ -673,6 +738,10 @@ def run_loop(interval_seconds=60):
                     'dollar_volume': vals.get('dollar_volume'),
                     'vol_z_60d': vals.get('vol_z_60d')
                 })
+
+            four_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'four_months_ago')
+            five_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'five_months_ago')
+            six_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'six_months_ago')
             
             # Compute breakouts
             breakouts_sp500 = compute_breakouts(returns_sp500)
@@ -693,6 +762,9 @@ def run_loop(interval_seconds=60):
                 last_month_month = today.month - 1
             two_months_ago_year, two_months_ago_month = _add_months(last_month_year, last_month_month, -1)
             three_months_ago_year, three_months_ago_month = _add_months(two_months_ago_year, two_months_ago_month, -1)
+            four_months_ago_year, four_months_ago_month = _add_months(three_months_ago_year, three_months_ago_month, -1)
+            five_months_ago_year, five_months_ago_month = _add_months(four_months_ago_year, four_months_ago_month, -1)
+            six_months_ago_year, six_months_ago_month = _add_months(five_months_ago_year, five_months_ago_month, -1)
 
             write_cache(
                 final,
@@ -709,6 +781,15 @@ def run_loop(interval_seconds=60):
                 three_months_ago_top10=three_months_ago_top10,
                 three_months_ago_year=three_months_ago_year,
                 three_months_ago_month=three_months_ago_month,
+                four_months_ago_top10=four_months_ago_top10,
+                four_months_ago_year=four_months_ago_year,
+                four_months_ago_month=four_months_ago_month,
+                five_months_ago_top10=five_months_ago_top10,
+                five_months_ago_year=five_months_ago_year,
+                five_months_ago_month=five_months_ago_month,
+                six_months_ago_top10=six_months_ago_top10,
+                six_months_ago_year=six_months_ago_year,
+                six_months_ago_month=six_months_ago_month,
             )
         except Exception as e:
             logging.exception(f"Error in update loop: {e}")

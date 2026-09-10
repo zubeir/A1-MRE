@@ -6,7 +6,7 @@ import json
 import math
 import os
 
-from agent import get_sp500_tickers, get_dow_tickers, get_nasdaq_tickers, compute_returns_for_tickers, enrich_top10, write_cache, compute_sector_favor, compute_sector_performance, project_price, compute_breakouts, enrich_breakouts
+from agent import get_sp500_tickers, get_dow_tickers, get_nasdaq_tickers, compute_returns_for_tickers, enrich_top10, build_historical_top10, write_cache, compute_sector_favor, compute_sector_performance, project_price, compute_breakouts, enrich_breakouts
 
 
 def _add_months(year, month, delta_months):
@@ -160,6 +160,10 @@ if __name__ == '__main__':
             'dollar_volume': vals.get('dollar_volume'),
             'vol_z_60d': vals.get('vol_z_60d')
         })
+
+    four_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'four_months_ago')
+    five_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'five_months_ago')
+    six_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'six_months_ago')
     
     # Compute breakouts
     breakouts_sp500 = compute_breakouts(returns_sp500)
@@ -180,6 +184,9 @@ if __name__ == '__main__':
         last_month_month = today.month - 1
     two_months_ago_year, two_months_ago_month = _add_months(last_month_year, last_month_month, -1)
     three_months_ago_year, three_months_ago_month = _add_months(two_months_ago_year, two_months_ago_month, -1)
+    four_months_ago_year, four_months_ago_month = _add_months(three_months_ago_year, three_months_ago_month, -1)
+    five_months_ago_year, five_months_ago_month = _add_months(four_months_ago_year, four_months_ago_month, -1)
+    six_months_ago_year, six_months_ago_month = _add_months(five_months_ago_year, five_months_ago_month, -1)
 
     write_cache(
         final,
@@ -196,5 +203,14 @@ if __name__ == '__main__':
         three_months_ago_top10=three_months_ago_top10,
         three_months_ago_year=three_months_ago_year,
         three_months_ago_month=three_months_ago_month,
+        four_months_ago_top10=four_months_ago_top10,
+        four_months_ago_year=four_months_ago_year,
+        four_months_ago_month=four_months_ago_month,
+        five_months_ago_top10=five_months_ago_top10,
+        five_months_ago_year=five_months_ago_year,
+        five_months_ago_month=five_months_ago_month,
+        six_months_ago_top10=six_months_ago_top10,
+        six_months_ago_year=six_months_ago_year,
+        six_months_ago_month=six_months_ago_month,
     )
     print('One-shot update completed, cache written.')

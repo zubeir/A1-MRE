@@ -905,6 +905,15 @@ two_months_ago_month = payload.get('two_months_ago_month')
 three_months_ago_top10 = payload.get('three_months_ago_top10', [])
 three_months_ago_year = payload.get('three_months_ago_year')
 three_months_ago_month = payload.get('three_months_ago_month')
+four_months_ago_top10 = payload.get('four_months_ago_top10', [])
+four_months_ago_year = payload.get('four_months_ago_year')
+four_months_ago_month = payload.get('four_months_ago_month')
+five_months_ago_top10 = payload.get('five_months_ago_top10', [])
+five_months_ago_year = payload.get('five_months_ago_year')
+five_months_ago_month = payload.get('five_months_ago_month')
+six_months_ago_top10 = payload.get('six_months_ago_top10', [])
+six_months_ago_year = payload.get('six_months_ago_year')
+six_months_ago_month = payload.get('six_months_ago_month')
 
 def _month_label(year, month):
     try:
@@ -917,6 +926,9 @@ def _month_label(year, month):
 last_month_label = _month_label(last_month_year, last_month_month)
 two_months_ago_label = _month_label(two_months_ago_year, two_months_ago_month)
 three_months_ago_label = _month_label(three_months_ago_year, three_months_ago_month)
+four_months_ago_label = _month_label(four_months_ago_year, four_months_ago_month)
+five_months_ago_label = _month_label(five_months_ago_year, five_months_ago_month)
+six_months_ago_label = _month_label(six_months_ago_year, six_months_ago_month)
 
 if not items:
     st.info('No data in cache yet. Waiting for agent to populate...')
@@ -1160,6 +1172,15 @@ def color_vol_z(val):
         return 'background-color: #d4edda; color: #155724'
     if v <= -2:
         return 'background-color: #f8d7da; color: #721c24'
+    return ''
+
+def _color_signal(v):
+    if v == 'High':
+        return 'background-color: #c3e6cb; color: #155724'
+    if v == 'Med':
+        return 'background-color: #d4edda; color: #155724'
+    if v == 'Low':
+        return 'background-color: #fff3cd; color: #856404'
     return ''
 
 def _style_format_2dp(styler, columns):
@@ -1413,6 +1434,75 @@ if three_months_ago_top10:
                 st.download_button('Download CSV', data=thm_show.to_csv(index=False).encode('utf-8'), file_name='three_months_ago_top10_vs_mtd.csv', mime='text/csv', key='csv_three_months')
         with exp2:
             _render_print_button('three_months_ago_top10', 'Three Months Ago Top 10 — This Month MTD', thm_show)
+
+def _render_historical_top10_section(records, year, month, period_title, value_key, value_title, section_key):
+    if not records:
+        return
+    label = _month_label(year, month)
+    title = f'{period_title} Top 10 (S&P 500) — {label} — How They Are Doing MTD This Month' if label else f'{period_title} Top 10 (S&P 500) — How They Are Doing MTD This Month'
+    data = pd.DataFrame(records)
+    if data.empty:
+        return
+    if 'symbol' in data.columns:
+        data = data.rename(columns={'symbol': 'Ticker', 'longName': 'Name', 'sector': 'Sectors'})
+    if 'last_price' in data.columns:
+        data['Price'] = data['last_price'].round(2)
+    if value_key in data.columns:
+        data[value_title] = (data[value_key] * 100).round(2)
+    if 'mtd' in data.columns:
+        data['This Month MTD %'] = (data['mtd'] * 100).round(2)
+    if 'ytd' in data.columns:
+        data['YTD %'] = (data['ytd'] * 100).round(2)
+    if 'volume' in data.columns:
+        data['Volume'] = data['volume'].apply(lambda x: None if x is None else int(x))
+    if 'avg_volume_20d' in data.columns:
+        data['Avg Vol (20D)'] = data['avg_volume_20d'].apply(lambda x: None if x is None else int(x))
+    if 'rel_volume_20d' in data.columns:
+        data['Rel Vol (20D)'] = data['rel_volume_20d'].round(2)
+    if 'dollar_volume' in data.columns:
+        data['$ Volume'] = data['dollar_volume'].apply(lambda x: None if x is None else round(float(x) / 1_000_000.0, 2))
+    if 'vol_z_60d' in data.columns:
+        data['Vol Z (60D)'] = data['vol_z_60d'].round(2)
+
+    if any(c in data.columns for c in ['rel_volume_20d', 'vol_z_60d', 'dollar_volume']):
+        signals = data.apply(lambda row: _activity_proxy(row.get('rel_volume_20d'), row.get('vol_z_60d'), row.get('dollar_volume')), axis=1)
+        data['Activity Signal'] = signals.apply(lambda value: value[0])
+        data['Activity Note'] = signals.apply(lambda value: value[1])
+
+    st.subheader(title)
+    with st.expander('Extra columns (activity / volume)', expanded=False):
+        extras = ['Activity Signal', 'Activity Note', 'Volume', 'Avg Vol (20D)', 'Rel Vol (20D)', '$ Volume', 'Vol Z (60D)']
+        available_extras = [column for column in extras if column in data.columns]
+        selected_extras = st.multiselect('Show extra columns:', options=available_extras, default=['Activity Signal'] if 'Activity Signal' in available_extras else [], key=f'{section_key}_extras')
+
+    base_columns = ['Ticker', 'Name', 'Sectors', 'Price', value_title, 'This Month MTD %', 'YTD %']
+    columns = [column for column in base_columns if column in data.columns]
+    columns += [column for column in selected_extras if column not in columns]
+    display = data[columns].copy()
+    styled = display.style.map(color_positive_negative, subset=[column for column in [value_title, 'This Month MTD %', 'YTD %'] if column in display.columns])
+    styled = _style_format_2dp(styled, [column for column in display.columns if isinstance(column, str) and column.strip().endswith('%')])
+    if 'Rel Vol (20D)' in display.columns:
+        styled = styled.map(color_rel_vol, subset=['Rel Vol (20D)'])
+    if 'Vol Z (60D)' in display.columns:
+        styled = styled.map(color_vol_z, subset=['Vol Z (60D)'])
+    if 'Activity Signal' in display.columns:
+        styled = styled.map(_color_signal, subset=['Activity Signal'])
+    st.dataframe(styled, use_container_width=True, column_config=_column_config_2dp(display))
+
+    download_col, print_col = st.columns([1, 1])
+    with download_col:
+        excel_bytes = _df_to_excel_bytes(display, sheet_name=f'{period_title}Top10')
+        if excel_bytes is not None:
+            st.download_button('Download Excel', data=excel_bytes, file_name=f'{section_key}_top10_vs_mtd.xlsx', mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', key=f'excel_{section_key}')
+        else:
+            st.download_button('Download CSV', data=display.to_csv(index=False).encode('utf-8'), file_name=f'{section_key}_top10_vs_mtd.csv', mime='text/csv', key=f'csv_{section_key}')
+    with print_col:
+        _render_print_button(section_key, f'{period_title} Top 10 — This Month MTD', display)
+
+
+_render_historical_top10_section(four_months_ago_top10, four_months_ago_year, four_months_ago_month, 'Four Months Ago', 'four_months_ago', 'Four Months Ago %', 'four_months_ago')
+_render_historical_top10_section(five_months_ago_top10, five_months_ago_year, five_months_ago_month, 'Five Months Ago', 'five_months_ago', 'Five Months Ago %', 'five_months_ago')
+_render_historical_top10_section(six_months_ago_top10, six_months_ago_year, six_months_ago_month, 'Six Months Ago', 'six_months_ago', 'Six Months Ago %', 'six_months_ago')
 
 # Sector summary
 st.subheader('Sector Performance Summary')
