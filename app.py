@@ -2235,43 +2235,43 @@ else:
 
     # qty
     if qty_col and qty_col in work.columns:
-        work['_qty'] = pd.to_numeric(work[qty_col].astype(str).str.replace('--','0').str.replace(',',''), errors='coerce').fillna(0)
+        work['_qty'] = pd.to_numeric(work[qty_col].astype(str).str.replace('--','0').str.replace(',',''), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_qty'] = 0
+        work['_qty'] = pd.Series(0.0, index=work.index, dtype='float64')
 
     # price: prefer CSV price if present
     if price_col and price_col in work.columns:
-        work['_price'] = pd.to_numeric(work[price_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0)
+        work['_price'] = pd.to_numeric(work[price_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_price'] = None
+        work['_price'] = pd.Series(float('nan'), index=work.index, dtype='float64')
 
     # cost basis (total) if present
     if cost_basis_col and cost_basis_col in work.columns:
-        work['_cost_total'] = pd.to_numeric(work[cost_basis_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0)
+        work['_cost_total'] = pd.to_numeric(work[cost_basis_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_cost_total'] = 0
+        work['_cost_total'] = pd.Series(0.0, index=work.index, dtype='float64')
 
     # cost per share if present
     if cost_per_col and cost_per_col in work.columns:
-        work['_cost_per'] = pd.to_numeric(work[cost_per_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0)
+        work['_cost_per'] = pd.to_numeric(work[cost_per_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_cost_per'] = 0
+        work['_cost_per'] = pd.Series(0.0, index=work.index, dtype='float64')
 
     # market value if present
     if market_col and market_col in work.columns:
-        work['_market_value'] = pd.to_numeric(work[market_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0)
+        work['_market_value'] = pd.to_numeric(work[market_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_market_value'] = 0
+        work['_market_value'] = pd.Series(0.0, index=work.index, dtype='float64')
 
     # gain columns if present
     if gain_dollar_col and gain_dollar_col in work.columns:
-        work['_perf_$'] = pd.to_numeric(work[gain_dollar_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0)
+        work['_perf_$'] = pd.to_numeric(work[gain_dollar_col].astype(str).str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_perf_$'] = 0
+        work['_perf_$'] = pd.Series(0.0, index=work.index, dtype='float64')
     if gain_pct_col and gain_pct_col in work.columns:
-        work['_perf_%'] = pd.to_numeric(work[gain_pct_col].astype(str).str.replace('%','').str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0)
+        work['_perf_%'] = pd.to_numeric(work[gain_pct_col].astype(str).str.replace('%','').str.replace(r'[^0-9.\-]', '', regex=True), errors='coerce').fillna(0).astype('float64')
     else:
-        work['_perf_%'] = 0
+        work['_perf_%'] = pd.Series(0.0, index=work.index, dtype='float64')
 
     # derive missing values: if cost_per present and cost_total missing, compute; if cost_total present and cost_per missing, compute
     mask1 = (work['_cost_total'] == 0) & (work['_cost_per'] > 0)
