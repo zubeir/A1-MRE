@@ -1190,12 +1190,12 @@ def _column_config_2dp(df):
         return {}
     return cfg
 
-styled_df = display_df.style.applymap(color_positive_negative, subset=[c for c in ['MTD %', 'YTD %', '1M (med) %', '3M (med) %', '6M (med) %', 'Exp Gain %'] if c in display_df.columns])
+styled_df = display_df.style.map(color_positive_negative, subset=[c for c in ['MTD %', 'YTD %', '1M (med) %', '3M (med) %', '6M (med) %', 'Exp Gain %'] if c in display_df.columns])
 styled_df = _style_format_2dp(styled_df, [c for c in display_df.columns if isinstance(c, str) and c.strip().endswith('%')])
 if 'Rel Vol (20D)' in display_df.columns:
-    styled_df = styled_df.applymap(color_rel_vol, subset=['Rel Vol (20D)'])
+    styled_df = styled_df.map(color_rel_vol, subset=['Rel Vol (20D)'])
 if 'Vol Z (60D)' in display_df.columns:
-    styled_df = styled_df.applymap(color_vol_z, subset=['Vol Z (60D)'])
+    styled_df = styled_df.map(color_vol_z, subset=['Vol Z (60D)'])
 if 'Activity Signal' in display_df.columns:
     def _color_signal(v):
         if v == 'High':
@@ -1205,7 +1205,7 @@ if 'Activity Signal' in display_df.columns:
         if v == 'Low':
             return 'background-color: #fff3cd; color: #856404'
         return ''
-    styled_df = styled_df.applymap(_color_signal, subset=['Activity Signal'])
+    styled_df = styled_df.map(_color_signal, subset=['Activity Signal'])
 
 st.dataframe(styled_df, use_container_width=True, column_config=_column_config_2dp(display_df))
 
@@ -1263,14 +1263,14 @@ if last_month_top10:
         cols += [c for c in show_extras if c not in cols]
 
         lm_show = lm_df[cols].copy()
-        lm_styled = lm_show.style.applymap(color_positive_negative, subset=[c for c in ['Last Month %', 'This Month MTD %', 'YTD %'] if c in lm_show.columns])
+        lm_styled = lm_show.style.map(color_positive_negative, subset=[c for c in ['Last Month %', 'This Month MTD %', 'YTD %'] if c in lm_show.columns])
         lm_styled = _style_format_2dp(lm_styled, [c for c in lm_show.columns if isinstance(c, str) and c.strip().endswith('%')])
         if 'Rel Vol (20D)' in lm_show.columns:
-            lm_styled = lm_styled.applymap(color_rel_vol, subset=['Rel Vol (20D)'])
+            lm_styled = lm_styled.map(color_rel_vol, subset=['Rel Vol (20D)'])
         if 'Vol Z (60D)' in lm_show.columns:
-            lm_styled = lm_styled.applymap(color_vol_z, subset=['Vol Z (60D)'])
+            lm_styled = lm_styled.map(color_vol_z, subset=['Vol Z (60D)'])
         if 'Activity Signal' in lm_show.columns:
-            lm_styled = lm_styled.applymap(_color_signal, subset=['Activity Signal'])
+            lm_styled = lm_styled.map(_color_signal, subset=['Activity Signal'])
 
         st.dataframe(lm_styled, use_container_width=True, column_config=_column_config_2dp(lm_show))
 
@@ -1328,14 +1328,14 @@ if two_months_ago_top10:
         cols += [c for c in show_extras if c not in cols]
 
         tm_show = tm_df[cols].copy()
-        tm_styled = tm_show.style.applymap(color_positive_negative, subset=[c for c in ['Two Months Ago %', 'This Month MTD %', 'YTD %'] if c in tm_show.columns])
+        tm_styled = tm_show.style.map(color_positive_negative, subset=[c for c in ['Two Months Ago %', 'This Month MTD %', 'YTD %'] if c in tm_show.columns])
         tm_styled = _style_format_2dp(tm_styled, [c for c in tm_show.columns if isinstance(c, str) and c.strip().endswith('%')])
         if 'Rel Vol (20D)' in tm_show.columns:
-            tm_styled = tm_styled.applymap(color_rel_vol, subset=['Rel Vol (20D)'])
+            tm_styled = tm_styled.map(color_rel_vol, subset=['Rel Vol (20D)'])
         if 'Vol Z (60D)' in tm_show.columns:
-            tm_styled = tm_styled.applymap(color_vol_z, subset=['Vol Z (60D)'])
+            tm_styled = tm_styled.map(color_vol_z, subset=['Vol Z (60D)'])
         if 'Activity Signal' in tm_show.columns:
-            tm_styled = tm_styled.applymap(_color_signal, subset=['Activity Signal'])
+            tm_styled = tm_styled.map(_color_signal, subset=['Activity Signal'])
 
         st.dataframe(tm_styled, use_container_width=True, column_config=_column_config_2dp(tm_show))
 
@@ -1393,14 +1393,14 @@ if three_months_ago_top10:
         cols += [c for c in show_extras if c not in cols]
 
         thm_show = thm_df[cols].copy()
-        thm_styled = thm_show.style.applymap(color_positive_negative, subset=[c for c in ['Three Months Ago %', 'This Month MTD %', 'YTD %'] if c in thm_show.columns])
+        thm_styled = thm_show.style.map(color_positive_negative, subset=[c for c in ['Three Months Ago %', 'This Month MTD %', 'YTD %'] if c in thm_show.columns])
         thm_styled = _style_format_2dp(thm_styled, [c for c in thm_show.columns if isinstance(c, str) and c.strip().endswith('%')])
         if 'Rel Vol (20D)' in thm_show.columns:
-            thm_styled = thm_styled.applymap(color_rel_vol, subset=['Rel Vol (20D)'])
+            thm_styled = thm_styled.map(color_rel_vol, subset=['Rel Vol (20D)'])
         if 'Vol Z (60D)' in thm_show.columns:
-            thm_styled = thm_styled.applymap(color_vol_z, subset=['Vol Z (60D)'])
+            thm_styled = thm_styled.map(color_vol_z, subset=['Vol Z (60D)'])
         if 'Activity Signal' in thm_show.columns:
-            thm_styled = thm_styled.applymap(_color_signal, subset=['Activity Signal'])
+            thm_styled = thm_styled.map(_color_signal, subset=['Activity Signal'])
 
         st.dataframe(thm_styled, use_container_width=True, column_config=_column_config_2dp(thm_show))
 
@@ -1677,7 +1677,7 @@ if sector_perf_show is None and 'sector' in df.columns:
 if sector_perf_show is not None and not sector_perf_show.empty:
     styled_sector_perf = sector_perf_show.style
     for c in [x for x in ['MTD %', 'QTD %', 'YTD %'] if x in sector_perf_show.columns]:
-        styled_sector_perf = styled_sector_perf.applymap(color_positive_negative, subset=[c])
+        styled_sector_perf = styled_sector_perf.map(color_positive_negative, subset=[c])
     styled_sector_perf = _style_format_2dp(styled_sector_perf, [c for c in sector_perf_show.columns if isinstance(c, str) and c.strip().endswith('%')])
     st.dataframe(styled_sector_perf, use_container_width=True, column_config=_column_config_2dp(sector_perf_show))
 
@@ -1847,7 +1847,7 @@ for row in items:
                     return 'background-color: #d4edda; color: #155724'
                 return 'background-color: #f8d7da; color: #721c24'
 
-            styled_proj = show_df.style.applymap(_color_pct, subset=['Low (10%)', 'Median (50%)', 'High (90%)'])
+            styled_proj = show_df.style.map(_color_pct, subset=['Low (10%)', 'Median (50%)', 'High (90%)'])
             styled_proj = _style_format_2dp(styled_proj, ['Low (10%)', 'Median (50%)', 'High (90%)'])
             st.dataframe(styled_proj, use_container_width=True, column_config=_column_config_2dp(show_df))
 
@@ -2584,14 +2584,14 @@ for index_name, breakout_list in breakouts.items():
                 return 'background-color: #d4edda; color: #155724'  # light green
             return ''
 
-        styled_breakouts = display_df.style.applymap(color_breakout, subset=['Breakout %'] if 'Breakout %' in display_df.columns else None)
+        styled_breakouts = display_df.style.map(color_breakout, subset=['Breakout %'] if 'Breakout %' in display_df.columns else None)
         styled_breakouts = _style_format_2dp(styled_breakouts, [c for c in display_df.columns if isinstance(c, str) and c.strip().endswith('%')])
         if 'Rel Vol (20D)' in display_df.columns:
-            styled_breakouts = styled_breakouts.applymap(color_rel_vol, subset=['Rel Vol (20D)'])
+            styled_breakouts = styled_breakouts.map(color_rel_vol, subset=['Rel Vol (20D)'])
         if 'Vol Z (60D)' in display_df.columns:
-            styled_breakouts = styled_breakouts.applymap(color_vol_z, subset=['Vol Z (60D)'])
+            styled_breakouts = styled_breakouts.map(color_vol_z, subset=['Vol Z (60D)'])
         if 'Activity Signal' in display_df.columns:
-            styled_breakouts = styled_breakouts.applymap(_color_signal, subset=['Activity Signal'])
+            styled_breakouts = styled_breakouts.map(_color_signal, subset=['Activity Signal'])
         st.dataframe(styled_breakouts, use_container_width=True, column_config=_column_config_2dp(display_df))
 
         exp1, exp2 = st.columns([1, 1])
