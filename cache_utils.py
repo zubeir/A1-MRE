@@ -41,6 +41,23 @@ def cache_age_minutes(last_updated_utc, now=None):
         return None
 
 
+def format_cache_age(age_minutes):
+    """Format cache age as readable days, hours, and minutes."""
+    if age_minutes is None:
+        return 'an unknown amount of time'
+    total_minutes = max(0, int(age_minutes))
+    days, remainder = divmod(total_minutes, 24 * 60)
+    hours, minutes = divmod(remainder, 60)
+    parts = []
+    if days:
+        parts.append(f'{days} day' if days == 1 else f'{days} days')
+    if hours:
+        parts.append(f'{hours} hour' if hours == 1 else f'{hours} hours')
+    if minutes or not parts:
+        parts.append(f'{minutes} minute' if minutes == 1 else f'{minutes} minutes')
+    return ', '.join(parts)
+
+
 def is_market_open_et(now=None):
     """Return whether the regular US equity session is open in Eastern time."""
     current = now or datetime.now(timezone.utc)

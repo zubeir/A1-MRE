@@ -46,6 +46,9 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 - The browser reloads at 8:30 AM, hourly from 9:30 AM through 4:30 PM, and at 5:00 PM Eastern on weekdays. A reload only rereads the cache; it does not download market data by itself.
 - Scheduled browser reloads work while the dashboard page is open; browser sleep/background throttling or a sleeping Streamlit Cloud app can delay the reload until the page is active again.
 - During regular US market hours, the dashboard warns when the cache is more than 60 minutes old. Use **Run Setup Script** or keep the local `agent.py` updater running to obtain fresh data.
+- Cache age is displayed in readable days, hours, and minutes rather than a raw minute total.
+- This help is available at the bottom of the dashboard under **Common Change Tracker**.
+- Projection tables now tolerate missing values in fallback or older caches without stopping the dashboard.
 - The app still requires the normal Python dependencies listed in `requirements.txt`.
 - If the setup script fails because a data provider or network request is unavailable, the fallback remains available for viewing the dashboard.
 

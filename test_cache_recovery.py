@@ -1,7 +1,8 @@
 import json
 from datetime import datetime, timezone
+import pandas as pd
 
-from cache_utils import cache_age_minutes, ensure_cache_file, is_market_open_et
+from cache_utils import cache_age_minutes, ensure_cache_file, format_cache_age, is_market_open_et
 
 
 def test_missing_runtime_cache_is_restored(tmp_path):
@@ -29,5 +30,17 @@ def test_cache_age_and_market_hours_are_calculated():
     updated = "2026-09-11T14:20:00Z"
 
     assert cache_age_minutes(updated, now) == 20
+    assert format_cache_age(16186) == "11 days, 5 hours, 46 minutes"
+    assert format_cache_age(65) == "1 hour, 5 minutes"
     assert is_market_open_et(now) is True
     assert is_market_open_et(datetime(2026, 9, 11, 21, 0, tzinfo=timezone.utc)) is False
+
+
+def test_projection_prices_with_missing_values_are_numeric_safe():
+    projection = pd.DataFrame({
+        "Low Price": [None, None],
+        "Median Price": [None, None],
+        "High Price": [None, None],
+    })
+    rounded = projection.apply(pd.to_numeric, errors="coerce").round(2)
+    assert rounded.isna().all().all()

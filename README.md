@@ -70,6 +70,7 @@ Notes and next steps:
 - You can tune `--interval` in seconds to control how often the agent updates.
 - The Streamlit app reloads at 8:30 AM, hourly from 9:30 AM through 4:30 PM, and at 5:00 PM Eastern on weekdays. It rereads the cache; this does not download market data unless the local agent or setup script updates the cache.
 - Scheduled browser reloads require the dashboard page to remain open; browser or Streamlit Cloud sleep can delay a reload until the page becomes active.
+- Cache age is shown in readable days, hours, and minutes. The cache restart help is available at the bottom under **Common Change Tracker**.
 - SSL configuration is in `.streamlit/config.toml`; modify as needed for your setup.
 
 Deployment note:

@@ -14,7 +14,7 @@ import base64
 import streamlit.components.v1 as components
 import calendar
 from top10_rotation import score_rotation_candidates, select_rotation_tickers, record_rotation_confirmation
-from cache_utils import cache_age_minutes, ensure_cache_file, is_market_open_et
+from cache_utils import cache_age_minutes, ensure_cache_file, format_cache_age, is_market_open_et
 try:
     from st_aggrid import AgGrid
     from st_aggrid.grid_options_builder import GridOptionsBuilder
@@ -655,11 +655,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-if os.path.exists(CHANGE_HELP_FILE):
-    st.markdown('<a id="cache-restart-change-help"></a>', unsafe_allow_html=True)
-    with st.expander('Cache Restart Change Help', expanded=False):
-        st.markdown(change_help_markdown)
-
 cache_restored = ensure_cache_file(CACHE_FILE, BUNDLED_CACHE_FILE)
 cache_path = CACHE_FILE if os.path.exists(CACHE_FILE) else BUNDLED_CACHE_FILE
 if not os.path.exists(cache_path):
@@ -684,10 +679,11 @@ except Exception:
     formatted = last
 
 cache_age = cache_age_minutes(last)
+cache_age_text = format_cache_age(cache_age)
 if cache_age is not None and is_market_open_et() and cache_age > 60:
-    st.warning(f'Data may not be latest: cache is approximately {cache_age:.0f} minutes old. Use "Run Setup Script" to refresh it.')
+    st.warning(f'Data may not be latest: cache is approximately {cache_age_text} old. Use "Run Setup Script" to refresh it.')
 elif cache_age is not None and cache_age > 60:
-    st.info(f'Market is currently closed. Showing the latest available data from approximately {cache_age:.0f} minutes ago.')
+    st.info(f'Market is currently closed. Showing the latest available data from approximately {cache_age_text} ago.')
 
 st.markdown(
     """__A1MRE_HERO__""".replace('__A1MRE_HERO__', """
@@ -2072,7 +2068,9 @@ for row in items:
             for c in ['Low (10%)', 'Median (50%)', 'High (90%)']:
                 show_df[c] = show_df[c].apply(lambda v: None if v is None else round(float(v) * 100.0, 2))
             for c in ['Low Price', 'Median Price', 'High Price']:
-                show_df[c] = show_df[c].round(2)
+                # Older/fallback caches can contain only None values here, which
+                # gives pandas an object column and makes Series.round() fail.
+                show_df[c] = pd.to_numeric(show_df[c], errors='coerce').round(2)
 
             def _color_pct(v):
                 if v is None or (isinstance(v, float) and (math.isnan(v))):
@@ -2090,6 +2088,7 @@ for row in items:
             st.dataframe(styled_proj, use_container_width=True, column_config=_column_config_2dp(show_df))
 
             chart_prices = proj_df[['Horizon', 'Low Price', 'Median Price', 'High Price']].set_index('Horizon')
+            chart_prices = chart_prices.apply(pd.to_numeric, errors='coerce')
             if not chart_prices.empty:
                 st.line_chart(chart_prices)
 
@@ -2845,6 +2844,12 @@ for index_name, breakout_list in breakouts.items():
         st.write("No breakouts currently.")
 
 st.markdown('---')
+
+if os.path.exists(CHANGE_HELP_FILE):
+    st.markdown('<a id="cache-restart-change-help"></a>', unsafe_allow_html=True)
+    with st.expander('Common Change Tracker', expanded=False):
+        st.markdown('### Cache Restart Change Help')
+        st.markdown(change_help_markdown)
 
 with st.expander('Fund Prospectus', expanded=False):
     st.write('Downloads')
