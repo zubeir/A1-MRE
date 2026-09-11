@@ -1196,11 +1196,21 @@ def _dashboard_snapshot_pdf_bytes(payload, snapshot_label):
         for row in sectors
     ])
 
-    breakouts = (payload.get('breakouts', {}) or {}).get('sp500', []) or []
-    _add_table('Top 10 Breakout Stocks — Breaking 52-Week Highs', ['Ticker', 'Name', 'Sector', 'Breakout %', 'Current Price', '52-Week High'], [
-        [row.get('symbol', ''), str(row.get('longName') or '')[:34], str(row.get('sector') or '')[:22], _pct(row.get('breakout_pct')),
-         _value(row.get('last_price')), _value(row.get('week52_high'))] for row in breakouts[:10]
-    ])
+    breakout_titles = {
+        'sp500': 'S&P 500',
+        'dow': 'DOW Jones',
+        'nasdaq': 'Nasdaq 100',
+    }
+    all_breakouts = payload.get('breakouts', {}) or {}
+    for index_name in ('sp500', 'dow', 'nasdaq'):
+        breakouts = all_breakouts.get(index_name, []) or []
+        index_title = breakout_titles[index_name]
+        _add_table(
+            f'Top 10 {index_title} Breakout Stocks — Breaking 52-Week Highs',
+            ['Ticker', 'Name', 'Sector', 'Breakout %', 'Current Price', '52-Week High'],
+                        [[row.get('symbol', ''), str(row.get('longName') or '')[:34], str(row.get('sector') or '')[:22], _pct(row.get('breakout_pct')),
+                            _value(row.get('last_price')), _value(row.get('week52_high'))] for row in breakouts[:10]],
+        )
 
     document.build(story)
     return buffer.getvalue()

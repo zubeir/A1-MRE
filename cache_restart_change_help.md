@@ -66,7 +66,7 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 ### Dashboard PDF snapshots
 
 - Added **Take Current Dashboard Snapshot** under **Dashboard Snapshots (PDF)**.
-- Each snapshot includes the cache timestamp, Top 10 MTD data, Top-10 Momentum Sleeve rotation candidates, rotation-score explanation, Rotation Scoring Table, Monthly Rotation Summary, historical Top 10 sections, sector performance, and Top 10 S&P 500 breakouts.
+- Each snapshot includes the cache timestamp, Top 10 MTD data, Top-10 Momentum Sleeve rotation candidates, rotation-score explanation, Rotation Scoring Table, Monthly Rotation Summary, historical Top 10 sections, sector performance, and Top 10 breakouts for S&P 500, DOW Jones, and Nasdaq 100 when available.
 - Saved PDFs are listed newest-first with **View / download** links for historical review.
 - Each saved snapshot has a **Delete** button that removes the local copy and the permanent GitHub copy when GitHub persistence is configured.
 - Snapshots are stored in `data/snapshots/` on the running instance. Local snapshots remain on the local machine; Streamlit Cloud storage may be cleared when the app container is recreated, so long-term Cloud history requires external storage or committing exported PDFs to the repository.
