@@ -5,6 +5,8 @@ This small project contains:
 - `app.py`: Streamlit dashboard that reads `cache.json` and displays the top 10 MTD performers.
 - `data/cache_seed.json`: tracked startup snapshot used when Streamlit Cloud recreates its container and runtime files are gone.
 - `cache_restart_change_help.md`: explanation of the cache restart fix, deployment steps, and verification.
+- `data/snapshots/`: timestamped dashboard PDF snapshots created from the app.
+- `.streamlit/secrets.toml.example`: configuration template for permanent GitHub snapshot storage.
 - `requirements.txt`: Python dependencies.
 
 Quick start (Windows PowerShell):
@@ -75,6 +77,13 @@ Notes and next steps:
 
 Deployment note:
 - Streamlit Cloud may discard files created while the app is running. The app restores `data/cache_seed.json` automatically instead of showing a cache-missing error; the agent/setup script replaces it with fresh runtime data.
+- Use **Dashboard Snapshots (PDF)** at the bottom of the app to save and review timestamped dashboard PDFs. Local snapshot files persist locally; Streamlit Cloud may clear runtime snapshots after a container recreation.
+
+Permanent snapshot storage:
+- In Streamlit Cloud, open **Manage app → Settings → Secrets** and add the values from `.streamlit/secrets.toml.example`.
+- `GITHUB_TOKEN` must be a fine-grained token with **Contents: Read and write** permission for `zubeir/A1-MRE`.
+- `GITHUB_REPO` defaults to `zubeir/A1-MRE`; `GITHUB_BRANCH` defaults to `main`.
+- After configuration, each new PDF is uploaded to `data/snapshots/` in GitHub and remains available after Cloud restarts.
 
 Privacy and data:
 - Data is fetched from Yahoo Finance via the `yfinance` package.

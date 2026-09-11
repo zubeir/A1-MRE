@@ -129,3 +129,4 @@ Thumbs.db
 # The tracked data/cache_seed.json is the Cloud restart fallback.
 cache.json
 cache.json.tmp
+data/snapshots/*.pdf

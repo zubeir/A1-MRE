@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import math
 import io
 import base64
+import requests
 import streamlit.components.v1 as components
 import calendar
 from top10_rotation import score_rotation_candidates, select_rotation_tickers, record_rotation_confirmation
@@ -89,6 +90,7 @@ except Exception:
 CACHE_FILE = os.path.join(os.path.dirname(__file__), 'cache.json')
 BUNDLED_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'data', 'cache_seed.json')
 CHANGE_HELP_FILE = os.path.join(os.path.dirname(__file__), 'cache_restart_change_help.md')
+SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), 'data', 'snapshots')
 PROSPECTUS_DIR = os.path.join(os.path.dirname(__file__), 'prospectus')
 
 
@@ -1077,6 +1079,177 @@ def _render_print_button(section_key, title, df):
     components.html(open_js, height=0)
     if st.button('Print / Save as PDF', key=f'print_{section_key}'):
         components.html(f"<script>openPrint_{section_key}();</script>", height=0)
+
+
+def _dashboard_snapshot_pdf_bytes(payload, snapshot_label):
+    """Create a compact PDF snapshot of the current dashboard data."""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import landscape, letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except ImportError:
+        return None
+
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=0.35 * inch,
+        leftMargin=0.35 * inch,
+        topMargin=0.35 * inch,
+        bottomMargin=0.35 * inch,
+    )
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph('A1-MRE Dashboard Snapshot', styles['Title']),
+        Paragraph(f'Snapshot created: {snapshot_label}', styles['Normal']),
+        Paragraph(f"Cache last updated: {payload.get('last_updated_utc', 'Unknown')}", styles['Normal']),
+        Spacer(1, 0.15 * inch),
+    ]
+
+    items = payload.get('data', []) or []
+    top_rows = [['Ticker', 'Name', 'Sector', 'Price', 'MTD %', 'YTD %']]
+    for row in items:
+        top_rows.append([
+            row.get('symbol', ''),
+            str(row.get('longName') or '')[:38],
+            str(row.get('sector') or '')[:24],
+            'N/A' if row.get('last_price') is None else f"{float(row['last_price']):.2f}",
+            'N/A' if row.get('mtd') is None else f"{float(row['mtd']) * 100:.2f}%",
+            'N/A' if row.get('ytd') is None else f"{float(row['ytd']) * 100:.2f}%",
+        ])
+    story.append(Paragraph('Top 10 MTD', styles['Heading2']))
+    story.append(Table(top_rows, repeatRows=1, colWidths=[0.7 * inch, 2.4 * inch, 1.6 * inch, 0.9 * inch, 0.9 * inch, 0.9 * inch], style=TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f3b64')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ])))
+
+    sectors = payload.get('sector_performance', []) or []
+    if sectors:
+        story.append(Spacer(1, 0.15 * inch))
+        sector_rows = [['Sector', 'MTD %', 'QTD %', 'YTD %', 'Count']]
+        for row in sectors:
+            sector_rows.append([
+                row.get('sector', ''),
+                'N/A' if row.get('avg_mtd') is None else f"{float(row['avg_mtd']) * 100:.2f}%",
+                'N/A' if row.get('avg_qtd') is None else f"{float(row['avg_qtd']) * 100:.2f}%",
+                'N/A' if row.get('avg_ytd') is None else f"{float(row['avg_ytd']) * 100:.2f}%",
+                row.get('count', ''),
+            ])
+        story.append(Paragraph('Sector Performance', styles['Heading2']))
+        story.append(Table(sector_rows, repeatRows=1, style=TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f3b64')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ])))
+
+    document.build(story)
+    return buffer.getvalue()
+
+
+def _save_dashboard_snapshot(payload):
+    """Save a timestamped PDF and return its path, or None if unavailable."""
+    snapshot_time = datetime.now(EAST_ZONE) if EAST_ZONE else datetime.now()
+    label = snapshot_time.strftime('%Y-%m-%d %I:%M:%S %p ET')
+    pdf_bytes = _dashboard_snapshot_pdf_bytes(payload, label)
+    if pdf_bytes is None:
+        return None
+    os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+    filename = f"dashboard_snapshot_{snapshot_time.strftime('%Y%m%d_%H%M%S')}.pdf"
+    path = os.path.join(SNAPSHOT_DIR, filename)
+    with open(path, 'wb') as snapshot_file:
+        snapshot_file.write(pdf_bytes)
+    return path
+
+
+def _github_snapshot_settings():
+    """Read optional GitHub persistence settings without exposing secrets."""
+    try:
+        token = str(st.secrets.get('GITHUB_TOKEN', '') or '').strip()
+        repo = str(st.secrets.get('GITHUB_REPO', 'zubeir/A1-MRE') or 'zubeir/A1-MRE').strip()
+        branch = str(st.secrets.get('GITHUB_BRANCH', 'main') or 'main').strip()
+    except Exception:
+        token, repo, branch = '', 'zubeir/A1-MRE', 'main'
+    if not token or '/' not in repo:
+        return None
+    return {'token': token, 'repo': repo, 'branch': branch}
+
+
+def _github_snapshot_headers(settings):
+    return {
+        'Authorization': f"Bearer {settings['token']}",
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+    }
+
+
+def _upload_snapshot_to_github(filename, pdf_bytes):
+    settings = _github_snapshot_settings()
+    if settings is None:
+        return False, 'GitHub persistence is not configured.'
+    path = f'data/snapshots/{filename}'
+    url = f"https://api.github.com/repos/{settings['repo']}/contents/{path}"
+    response = requests.put(
+        url,
+        headers=_github_snapshot_headers(settings),
+        json={
+            'message': f'Add dashboard snapshot {filename}',
+            'content': base64.b64encode(pdf_bytes).decode('ascii'),
+            'branch': settings['branch'],
+        },
+        timeout=30,
+    )
+    if response.ok:
+        return True, 'Snapshot permanently stored in GitHub.'
+    return False, f'GitHub upload failed ({response.status_code}). Check the Streamlit GitHub secret and token permissions.'
+
+
+def _list_github_snapshots():
+    settings = _github_snapshot_settings()
+    if settings is None:
+        return []
+    path = 'data/snapshots'
+    url = f"https://api.github.com/repos/{settings['repo']}/contents/{path}"
+    try:
+        response = requests.get(
+            url,
+            headers=_github_snapshot_headers(settings),
+            params={'ref': settings['branch']},
+            timeout=20,
+        )
+        if not response.ok:
+            return []
+        return [
+            item for item in response.json()
+            if item.get('type') == 'file' and str(item.get('name', '')).lower().endswith('.pdf')
+        ]
+    except (requests.RequestException, ValueError, TypeError):
+        return []
+
+
+def _download_github_snapshot(item):
+    settings = _github_snapshot_settings()
+    if settings is None or not item.get('path'):
+        return None
+    url = f"https://api.github.com/repos/{settings['repo']}/contents/{item['path']}"
+    try:
+        response = requests.get(
+            url,
+            headers=_github_snapshot_headers(settings),
+            params={'ref': settings['branch']},
+            timeout=30,
+        )
+        response.raise_for_status()
+        content = response.json().get('content', '')
+        return base64.b64decode(content) if content else None
+    except (requests.RequestException, ValueError, TypeError):
+        return None
 
 # Build DataFrame and normalize columns
 df = pd.DataFrame(items)
@@ -2897,6 +3070,56 @@ for index_name, breakout_list in breakouts.items():
         st.write("No breakouts currently.")
 
 st.markdown('---')
+
+with st.expander('Dashboard Snapshots (PDF)', expanded=False):
+    st.write('Save the current dashboard data as a timestamped PDF and view or download earlier snapshots.')
+    if _github_snapshot_settings() is None:
+        st.info('Permanent Cloud storage is not configured. Add GITHUB_TOKEN, GITHUB_REPO, and GITHUB_BRANCH in Streamlit Secrets to retain snapshots after Cloud restarts.')
+    if st.button('Take Current Dashboard Snapshot', key='take_dashboard_snapshot'):
+        snapshot_path = _save_dashboard_snapshot(payload)
+        if snapshot_path:
+            filename = os.path.basename(snapshot_path)
+            with open(snapshot_path, 'rb') as saved_snapshot:
+                pdf_bytes = saved_snapshot.read()
+            uploaded, upload_message = _upload_snapshot_to_github(filename, pdf_bytes)
+            if uploaded:
+                st.success(f'{filename} saved locally and permanently to GitHub.')
+            else:
+                st.warning(f'{filename} saved locally. {upload_message}')
+        else:
+            st.error('PDF snapshot unavailable. Install the reportlab dependency and restart the app.')
+
+    github_snapshots = _list_github_snapshots()
+    github_names = {item.get('name') for item in github_snapshots}
+    if os.path.isdir(SNAPSHOT_DIR):
+        snapshot_files = sorted(
+            [name for name in os.listdir(SNAPSHOT_DIR) if name.lower().endswith('.pdf')],
+            reverse=True,
+        )
+    else:
+        snapshot_files = []
+
+    all_snapshot_names = sorted(set(snapshot_files) | github_names, reverse=True)
+    if all_snapshot_names:
+        st.caption(f'{len(all_snapshot_names)} saved snapshot(s), newest first')
+        github_by_name = {item.get('name'): item for item in github_snapshots}
+        for index, filename in enumerate(all_snapshot_names):
+            file_path = os.path.join(SNAPSHOT_DIR, filename)
+            if os.path.exists(file_path):
+                with open(file_path, 'rb') as snapshot_file:
+                    snapshot_bytes = snapshot_file.read()
+            else:
+                snapshot_bytes = _download_github_snapshot(github_by_name[filename])
+            if snapshot_bytes:
+                st.download_button(
+                    f'View / download {filename}',
+                    data=snapshot_bytes,
+                    file_name=filename,
+                    mime='application/pdf',
+                    key=f'view_dashboard_snapshot_{index}',
+                )
+    else:
+        st.info('No dashboard snapshots have been saved yet.')
 
 if os.path.exists(CHANGE_HELP_FILE):
     st.markdown('<a id="cache-restart-change-help"></a>', unsafe_allow_html=True)

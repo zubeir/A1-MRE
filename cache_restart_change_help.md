@@ -37,6 +37,9 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 - `test_cache_recovery.py` — verifies cache recovery, cache-age formatting, market-hours logic, and missing projection values.
 - `README.md` — documents the Streamlit Cloud deployment, refresh, and freshness behavior.
 - `cache_restart_change_help.md` — displayed at the bottom of the app under **Common Change Tracker** and available from the sidebar.
+- `data/snapshots/` — stores timestamped dashboard PDF snapshots created from the app.
+- `requirements.txt` — includes `reportlab` for dashboard PDF generation.
+- `.streamlit/secrets.toml.example` — template for configuring permanent GitHub snapshot storage.
 
 ## Change history
 
@@ -59,6 +62,15 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 - Fixed the projections panel crash when fallback or historical data contains only missing prices.
 - Added an import fallback in `app.py` to prevent Cloud startup failure when deployed files are temporarily out of sync.
 - Added regression checks for the recovery, freshness, formatting, and projection edge cases.
+
+### Dashboard PDF snapshots
+
+- Added **Take Current Dashboard Snapshot** under **Dashboard Snapshots (PDF)**.
+- Each snapshot includes the cache timestamp, Top 10 MTD data, and sector performance when available.
+- Saved PDFs are listed newest-first with **View / download** links for historical review.
+- Snapshots are stored in `data/snapshots/` on the running instance. Local snapshots remain on the local machine; Streamlit Cloud storage may be cleared when the app container is recreated, so long-term Cloud history requires external storage or committing exported PDFs to the repository.
+- When `GITHUB_TOKEN`, `GITHUB_REPO`, and `GITHUB_BRANCH` are configured in Streamlit Cloud Secrets, new PDFs are uploaded to the repository through the GitHub Contents API and historical PDFs are restored after Cloud restarts.
+- The GitHub token must have fine-grained **Contents: Read and write** permission for the target repository. Never commit the real token to the repository.
 
 ## Deployment steps
 
