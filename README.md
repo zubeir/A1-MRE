@@ -77,7 +77,7 @@ Notes and next steps:
 
 Deployment note:
 - Streamlit Cloud may discard files created while the app is running. The app restores `data/cache_seed.json` automatically instead of showing a cache-missing error; the agent/setup script replaces it with fresh runtime data.
-- Use **Dashboard Snapshots (PDF)** at the bottom of the app to save and review timestamped dashboard PDFs. Local snapshot files persist locally; Streamlit Cloud may clear runtime snapshots after a container recreation.
+- Use **Dashboard Snapshots (PDF)** at the bottom of the app to save and review timestamped dashboard PDFs. Snapshots include the major dashboard analysis sections, and each saved snapshot has a Delete button. Local snapshot files persist locally; Streamlit Cloud may clear runtime snapshots after a container recreation.
 
 Permanent snapshot storage:
 - In Streamlit Cloud, open **Manage app → Settings → Secrets** and add the values from `.streamlit/secrets.toml.example`.

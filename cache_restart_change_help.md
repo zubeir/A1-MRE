@@ -66,8 +66,9 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 ### Dashboard PDF snapshots
 
 - Added **Take Current Dashboard Snapshot** under **Dashboard Snapshots (PDF)**.
-- Each snapshot includes the cache timestamp, Top 10 MTD data, and sector performance when available.
+- Each snapshot includes the cache timestamp, Top 10 MTD data, Top-10 Momentum Sleeve rotation candidates, rotation-score explanation, Rotation Scoring Table, Monthly Rotation Summary, historical Top 10 sections, sector performance, and Top 10 S&P 500 breakouts.
 - Saved PDFs are listed newest-first with **View / download** links for historical review.
+- Each saved snapshot has a **Delete** button that removes the local copy and the permanent GitHub copy when GitHub persistence is configured.
 - Snapshots are stored in `data/snapshots/` on the running instance. Local snapshots remain on the local machine; Streamlit Cloud storage may be cleared when the app container is recreated, so long-term Cloud history requires external storage or committing exported PDFs to the repository.
 - When `GITHUB_TOKEN`, `GITHUB_REPO`, and `GITHUB_BRANCH` are configured in Streamlit Cloud Secrets, new PDFs are uploaded to the repository through the GitHub Contents API and historical PDFs are restored after Cloud restarts.
 - The GitHub token must have fine-grained **Contents: Read and write** permission for the target repository. Never commit the real token to the repository.

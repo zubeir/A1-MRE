@@ -1082,7 +1082,7 @@ def _render_print_button(section_key, title, df):
 
 
 def _dashboard_snapshot_pdf_bytes(payload, snapshot_label):
-    """Create a compact PDF snapshot of the current dashboard data."""
+    """Create a PDF snapshot containing the dashboard's major analysis sections."""
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import landscape, letter
@@ -1109,45 +1109,98 @@ def _dashboard_snapshot_pdf_bytes(payload, snapshot_label):
         Spacer(1, 0.15 * inch),
     ]
 
-    items = payload.get('data', []) or []
-    top_rows = [['Ticker', 'Name', 'Sector', 'Price', 'MTD %', 'YTD %']]
-    for row in items:
-        top_rows.append([
-            row.get('symbol', ''),
-            str(row.get('longName') or '')[:38],
-            str(row.get('sector') or '')[:24],
-            'N/A' if row.get('last_price') is None else f"{float(row['last_price']):.2f}",
-            'N/A' if row.get('mtd') is None else f"{float(row['mtd']) * 100:.2f}%",
-            'N/A' if row.get('ytd') is None else f"{float(row['ytd']) * 100:.2f}%",
-        ])
-    story.append(Paragraph('Top 10 MTD', styles['Heading2']))
-    story.append(Table(top_rows, repeatRows=1, colWidths=[0.7 * inch, 2.4 * inch, 1.6 * inch, 0.9 * inch, 0.9 * inch, 0.9 * inch], style=TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f3b64')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ])))
+    def _value(value, suffix=''):
+        return 'N/A' if value is None else f'{value}{suffix}'
 
-    sectors = payload.get('sector_performance', []) or []
-    if sectors:
-        story.append(Spacer(1, 0.15 * inch))
-        sector_rows = [['Sector', 'MTD %', 'QTD %', 'YTD %', 'Count']]
-        for row in sectors:
-            sector_rows.append([
-                row.get('sector', ''),
-                'N/A' if row.get('avg_mtd') is None else f"{float(row['avg_mtd']) * 100:.2f}%",
-                'N/A' if row.get('avg_qtd') is None else f"{float(row['avg_qtd']) * 100:.2f}%",
-                'N/A' if row.get('avg_ytd') is None else f"{float(row['avg_ytd']) * 100:.2f}%",
-                row.get('count', ''),
-            ])
-        story.append(Paragraph('Sector Performance', styles['Heading2']))
-        story.append(Table(sector_rows, repeatRows=1, style=TableStyle([
+    def _pct(value):
+        try:
+            return f'{float(value) * 100:.2f}%'
+        except (TypeError, ValueError):
+            return 'N/A'
+
+    def _add_table(title, headers, rows, widths=None):
+        story.append(Spacer(1, 0.12 * inch))
+        story.append(Paragraph(title, styles['Heading2']))
+        if not rows:
+            rows = [['No data available'] + [''] * (len(headers) - 1)]
+        table_data = [headers] + rows
+        table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f3b64')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ])))
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ])
+        story.append(Table(table_data, repeatRows=1, colWidths=widths, style=table_style))
+
+    items = payload.get('data', []) or []
+    _add_table(
+        'Top 10 MTD — September Momentum Stocks from S&P500',
+        ['Ticker', 'Name', 'Sector', 'Price', 'MTD %', 'YTD %'],
+        [[row.get('symbol', ''), str(row.get('longName') or '')[:38], str(row.get('sector') or '')[:24],
+          _value(None if row.get('last_price') is None else f"{float(row['last_price']):.2f}"),
+          _pct(row.get('mtd')), _pct(row.get('ytd'))] for row in items],
+        [0.7 * inch, 2.3 * inch, 1.6 * inch, 0.9 * inch, 0.9 * inch, 0.9 * inch],
+    )
+
+    candidates = payload.get('rotation_candidates', []) or []
+    _add_table(
+        'Top-10 Momentum Sleeve — Rotation Candidates',
+        ['Ticker', 'Sector', 'Appearances', 'MTD Status', 'Aligned', 'Breakout', 'Score', 'Signal'],
+        [[row.get('symbol', ''), row.get('sector', ''), row.get('appearance_count_6m', ''), row.get('mtd_status', ''),
+          'Yes' if row.get('sector_aligned') else 'No', 'Yes' if row.get('breakout_52w_high') else 'No',
+          _value(row.get('rotation_score')), row.get('rotation_signal', '')] for row in candidates],
+        [0.65 * inch, 1.55 * inch, 0.8 * inch, 0.85 * inch, 0.55 * inch, 0.65 * inch, 0.6 * inch, 0.9 * inch],
+    )
+    story.append(Paragraph('How the Rotation Score Is Calculated', styles['Heading2']))
+    story.append(Paragraph('Score = 0.4(Persistence) + 0.3(MTD) + 0.2(Sector) + 0.1(Breakout). Each component is scored from 0 to 100.', styles['Normal']))
+
+    _add_table(
+        'Rotation Scoring Table',
+        ['Ticker', 'Persistence', 'MTD', 'Sector', 'Breakout', 'Score', 'Signal'],
+        [[row.get('symbol', ''), _value(row.get('appearance_score')), _value(row.get('mtd_score')), _value(row.get('sector_score')),
+          _value(row.get('breakout_score')), _value(row.get('rotation_score')), row.get('rotation_signal', '')] for row in candidates],
+        [0.75 * inch, 0.9 * inch, 0.65 * inch, 0.65 * inch, 0.75 * inch, 0.65 * inch, 0.9 * inch],
+    )
+
+    selection = payload.get('rotation_selection', []) or []
+    _add_table(
+        'Monthly Rotation Summary',
+        ['Rank', 'Ticker', 'Score', 'Signal', 'Allocation %'],
+        [[index, row.get('symbol', ''), _value(row.get('rotation_score')), row.get('rotation_signal', ''),
+          f'{100 / len(selection):.2f}%' if selection else 'N/A'] for index, row in enumerate(selection, 1)],
+        [0.5 * inch, 0.8 * inch, 0.7 * inch, 1.0 * inch, 1.0 * inch],
+    )
+
+    previous_year = payload.get('last_month_year')
+    previous_month = payload.get('last_month_month')
+    previous_label = f'{calendar.month_name[int(previous_month)]} {int(previous_year)}' if previous_year and previous_month else 'Last Month'
+    historical_sections = [
+        (f'Last Month Top 10 (S&P 500) — {previous_label} — How They Are Doing MTD This Month', 'last_month_top10', 'last_month'),
+        ('Two Months Ago Top 10 (S&P 500)', 'two_months_ago_top10', 'two_months_ago'),
+        ('Three Months Ago Top 10 (S&P 500)', 'three_months_ago_top10', 'three_months_ago'),
+        ('Four Months Ago Top 10 (S&P 500)', 'four_months_ago_top10', 'four_months_ago'),
+        ('Five Months Ago Top 10 (S&P 500)', 'five_months_ago_top10', 'five_months_ago'),
+        ('Six Months Ago Top 10 (S&P 500)', 'six_months_ago_top10', 'six_months_ago'),
+    ]
+    for title, payload_key, value_key in historical_sections:
+        records = payload.get(payload_key, []) or []
+        _add_table(title, ['Ticker', 'Name', 'Sector', 'Period %', 'This Month MTD %', 'YTD %'], [
+            [row.get('symbol', ''), str(row.get('longName') or '')[:34], str(row.get('sector') or '')[:22],
+             _pct(row.get(value_key)), _pct(row.get('mtd')), _pct(row.get('ytd'))] for row in records
+        ])
+
+    sectors = payload.get('sector_performance', []) or []
+    _add_table('Sector Performance (MTD / QTD / YTD)', ['Sector', 'MTD %', 'QTD %', 'YTD %', 'Count'], [
+        [row.get('sector', ''), _pct(row.get('avg_mtd')), _pct(row.get('avg_qtd')), _pct(row.get('avg_ytd')), row.get('count', '')]
+        for row in sectors
+    ])
+
+    breakouts = (payload.get('breakouts', {}) or {}).get('sp500', []) or []
+    _add_table('Top 10 Breakout Stocks — Breaking 52-Week Highs', ['Ticker', 'Name', 'Sector', 'Breakout %', 'Current Price', '52-Week High'], [
+        [row.get('symbol', ''), str(row.get('longName') or '')[:34], str(row.get('sector') or '')[:22], _pct(row.get('breakout_pct')),
+         _value(row.get('last_price')), _value(row.get('week52_high'))] for row in breakouts[:10]
+    ])
 
     document.build(story)
     return buffer.getvalue()
@@ -1250,6 +1303,47 @@ def _download_github_snapshot(item):
         return base64.b64decode(content) if content else None
     except (requests.RequestException, ValueError, TypeError):
         return None
+
+
+def _delete_snapshot_from_github(item):
+    settings = _github_snapshot_settings()
+    if settings is None or not item.get('path') or not item.get('sha'):
+        return False, 'GitHub persistence is not configured or snapshot metadata is unavailable.'
+    url = f"https://api.github.com/repos/{settings['repo']}/contents/{item['path']}"
+    try:
+        response = requests.delete(
+            url,
+            headers=_github_snapshot_headers(settings),
+            json={
+                'message': f"Delete dashboard snapshot {item.get('name', 'snapshot')}",
+                'sha': item['sha'],
+                'branch': settings['branch'],
+            },
+            timeout=30,
+        )
+        if response.ok:
+            return True, 'Snapshot deleted from GitHub.'
+        return False, f'GitHub delete failed ({response.status_code}). Check token permissions.'
+    except requests.RequestException as exc:
+        return False, f'GitHub delete failed: {exc}'
+
+
+def _delete_dashboard_snapshot(filename, github_item=None):
+    """Delete a snapshot locally and, when configured, permanently from GitHub."""
+    messages = []
+    local_path = os.path.join(SNAPSHOT_DIR, filename)
+    if os.path.exists(local_path):
+        try:
+            os.remove(local_path)
+            messages.append('local copy deleted')
+        except OSError as exc:
+            return False, f'Could not delete local copy: {exc}'
+    if github_item:
+        deleted, message = _delete_snapshot_from_github(github_item)
+        if not deleted:
+            return False, message
+        messages.append('GitHub copy deleted')
+    return True, ', '.join(messages) or 'snapshot deleted'
 
 # Build DataFrame and normalize columns
 df = pd.DataFrame(items)
@@ -3111,13 +3205,23 @@ with st.expander('Dashboard Snapshots (PDF)', expanded=False):
             else:
                 snapshot_bytes = _download_github_snapshot(github_by_name[filename])
             if snapshot_bytes:
-                st.download_button(
-                    f'View / download {filename}',
-                    data=snapshot_bytes,
-                    file_name=filename,
-                    mime='application/pdf',
-                    key=f'view_dashboard_snapshot_{index}',
-                )
+                view_col, delete_col = st.columns([5, 1])
+                with view_col:
+                    st.download_button(
+                        f'View / download {filename}',
+                        data=snapshot_bytes,
+                        file_name=filename,
+                        mime='application/pdf',
+                        key=f'view_dashboard_snapshot_{index}',
+                    )
+                with delete_col:
+                    if st.button('Delete', key=f'delete_dashboard_snapshot_{index}'):
+                        deleted, delete_message = _delete_dashboard_snapshot(filename, github_by_name.get(filename))
+                        if deleted:
+                            st.success(delete_message)
+                            st.rerun()
+                        else:
+                            st.error(delete_message)
     else:
         st.info('No dashboard snapshots have been saved yet.')
 
