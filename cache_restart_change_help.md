@@ -1,4 +1,6 @@
-# Cache Restart Change Help
+# Common Change Tracker — Cache, Refresh, and Stability Changes
+
+This document records the dashboard changes made to improve Streamlit Cloud restarts, data freshness visibility, and runtime stability.
 
 ## What changed
 
@@ -22,14 +24,41 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 
 ## Files changed
 
-- `app.py` — detects a missing runtime cache, restores the fallback, and displays a clear status message.
-- `app.py` — displays a freshness alert when data is more than 60 minutes old during regular market hours and reloads at 8:30 AM, hourly during the session, and 5:00 PM Eastern on weekdays.
-- `cache_utils.py` — contains the reusable cache-recovery helper.
+- `app.py` — detects a missing runtime cache and restores the fallback snapshot.
+- `app.py` — displays a freshness alert when data is more than 60 minutes old during regular market hours.
+- `app.py` — reloads at 8:30 AM, hourly from 9:30 AM through 4:30 PM, and at 5:00 PM Eastern on weekdays.
+- `app.py` — includes a compatibility fallback so older Cloud revisions can start even if `cache_utils.py` is missing or incomplete.
+- `app.py` — safely converts missing projection prices to numeric values before rounding, preventing the pandas `TypeError` shown in the dashboard.
+- `app.py` — protects projection charts from all-missing or object-typed price columns.
+- `cache_utils.py` — contains reusable cache recovery, cache-age formatting, and market-hours helpers.
 - `data/cache_seed.json` — tracked fallback data used after a Cloud restart.
 - `agent.py` — writes the cache atomically through a temporary file before replacing the old cache. This prevents the dashboard from reading a partially written JSON file.
 - `.gitignore` — continues to ignore generated `cache.json` and now also ignores `cache.json.tmp`.
-- `test_cache_recovery.py` — verifies fallback recovery and confirms that a fresh runtime cache is never overwritten.
-- `README.md` — documents the Streamlit Cloud deployment behavior.
+- `test_cache_recovery.py` — verifies cache recovery, cache-age formatting, market-hours logic, and missing projection values.
+- `README.md` — documents the Streamlit Cloud deployment, refresh, and freshness behavior.
+- `cache_restart_change_help.md` — displayed at the bottom of the app under **Common Change Tracker** and available from the sidebar.
+
+## Change history
+
+### Cache restart resilience
+
+- Added `data/cache_seed.json` as a tracked startup snapshot.
+- Restored the snapshot automatically when Streamlit Cloud loses runtime `cache.json` storage.
+- Kept generated runtime files out of Git while ensuring the deployed app has usable fallback data.
+
+### Data freshness and scheduled refresh
+
+- Added a market-aware alert for cache data older than 60 minutes during regular US trading hours.
+- Added readable cache-age text such as “11 days, 5 hours, 46 minutes” instead of displaying only a raw minute count.
+- Added scheduled weekday browser reloads at 8:30 AM, hourly during the market session, and 5:00 PM Eastern.
+- Documented that browser reloads reread the cache but do not download market data; `agent.py` or **Run Setup Script** must update the cache.
+
+### Runtime stability
+
+- Changed cache writes to atomic replacement through `cache.json.tmp`.
+- Fixed the projections panel crash when fallback or historical data contains only missing prices.
+- Added an import fallback in `app.py` to prevent Cloud startup failure when deployed files are temporarily out of sync.
+- Added regression checks for the recovery, freshness, formatting, and projection edge cases.
 
 ## Deployment steps
 

@@ -14,7 +14,60 @@ import base64
 import streamlit.components.v1 as components
 import calendar
 from top10_rotation import score_rotation_candidates, select_rotation_tickers, record_rotation_confirmation
-from cache_utils import cache_age_minutes, ensure_cache_file, format_cache_age, is_market_open_et
+try:
+    from cache_utils import cache_age_minutes, ensure_cache_file, format_cache_age, is_market_open_et
+except ImportError:
+    # Keep deployed apps compatible with older revisions that do not yet contain
+    # cache_utils.py. New deployments use the shared module above.
+    import shutil
+
+    def ensure_cache_file(cache_file, bundled_cache_file):
+        if os.path.exists(cache_file) or not os.path.exists(bundled_cache_file):
+            return False
+        try:
+            shutil.copyfile(bundled_cache_file, cache_file)
+        except OSError:
+            return False
+        return True
+
+    def cache_age_minutes(last_updated_utc, now=None):
+        if not last_updated_utc:
+            return None
+        try:
+            updated = datetime.fromisoformat(str(last_updated_utc).replace('Z', '+00:00'))
+            if updated.tzinfo is None:
+                updated = updated.replace(tzinfo=timezone.utc)
+            current = now or datetime.now(timezone.utc)
+            if current.tzinfo is None:
+                current = current.replace(tzinfo=timezone.utc)
+            return max(0.0, (current.astimezone(timezone.utc) - updated.astimezone(timezone.utc)).total_seconds() / 60.0)
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    def format_cache_age(age_minutes):
+        if age_minutes is None:
+            return 'an unknown amount of time'
+        total_minutes = max(0, int(age_minutes))
+        days, remainder = divmod(total_minutes, 24 * 60)
+        hours, minutes = divmod(remainder, 60)
+        parts = []
+        if days:
+            parts.append(f'{days} day' if days == 1 else f'{days} days')
+        if hours:
+            parts.append(f'{hours} hour' if hours == 1 else f'{hours} hours')
+        if minutes or not parts:
+            parts.append(f'{minutes} minute' if minutes == 1 else f'{minutes} minutes')
+        return ', '.join(parts)
+
+    def is_market_open_et(now=None):
+        current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
+        try:
+            current = current.astimezone(ZoneInfo('America/New_York'))
+        except Exception:
+            current = current.astimezone(timezone.utc)
+        return current.weekday() < 5 and (current.hour, current.minute) >= (9, 30) and (current.hour, current.minute) < (16, 0)
 try:
     from st_aggrid import AgGrid
     from st_aggrid.grid_options_builder import GridOptionsBuilder
