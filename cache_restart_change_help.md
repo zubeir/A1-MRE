@@ -73,6 +73,12 @@ The snapshot is only a startup fallback. It is not intended to replace the norma
 - When `GITHUB_TOKEN`, `GITHUB_REPO`, and `GITHUB_BRANCH` are configured in Streamlit Cloud Secrets, new PDFs are uploaded to the repository through the GitHub Contents API and historical PDFs are restored after Cloud restarts.
 - The GitHub token must have fine-grained **Contents: Read and write** permission for the target repository. Never commit the real token to the repository.
 
+### Top 10 / Top 20 dashboard mode
+
+- Added the sidebar **Dashboard mover count** selector with **Top 10** as the default.
+- **Top 20** applies consistently to current movers, each historical monthly cohort, rotation candidates and summary, detail panels, all breakout indexes, and generated PDF snapshots.
+- The market-data generator now retains up to 20 rows in the cache. Run **Run Setup Script** after deployment so older 10-row caches are replaced with full Top 20 data.
+
 ## Deployment steps
 
 1. Commit and push all changed files, especially `data/cache_seed.json`, `cache_utils.py`, and `app.py`.

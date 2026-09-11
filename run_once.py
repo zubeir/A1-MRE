@@ -26,7 +26,7 @@ if __name__ == '__main__':
     returns_nasdaq = compute_returns_for_tickers(nasdaq_ticks)
     filtered = {t: v for t, v in returns_sp500.items() if v.get('mtd') is not None and not math.isnan(v.get('mtd'))}
     sorted_by_mtd = sorted(filtered.items(), key=lambda kv: kv[1]['mtd'], reverse=True)
-    top10 = sorted_by_mtd[:10]
+    top10 = sorted_by_mtd[:20]
     top10_symbols = [t for t, v in top10]
     # compute sector favor across available returns
     sector_map = compute_sector_favor(returns_sp500, ticker_info)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     filtered_lm = {t: v for t, v in returns_sp500.items() if v.get('last_month') is not None and not math.isnan(v.get('last_month'))}
     sorted_by_lm = sorted(filtered_lm.items(), key=lambda kv: kv[1]['last_month'], reverse=True)
-    top10_lm = sorted_by_lm[:10]
+    top10_lm = sorted_by_lm[:20]
     top10_lm_symbols = [t for t, _ in top10_lm]
     enriched_lm = enrich_top10(top10_lm_symbols, ticker_info)
     last_month_top10 = []
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     filtered_2m = {t: v for t, v in returns_sp500.items() if v.get('two_months_ago') is not None and not math.isnan(v.get('two_months_ago'))}
     sorted_by_2m = sorted(filtered_2m.items(), key=lambda kv: kv[1]['two_months_ago'], reverse=True)
-    top10_2m = sorted_by_2m[:10]
+    top10_2m = sorted_by_2m[:20]
     top10_2m_symbols = [t for t, _ in top10_2m]
     enriched_2m = enrich_top10(top10_2m_symbols, ticker_info)
     two_months_ago_top10 = []
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
     filtered_3m = {t: v for t, v in returns_sp500.items() if v.get('three_months_ago') is not None and not math.isnan(v.get('three_months_ago'))}
     sorted_by_3m = sorted(filtered_3m.items(), key=lambda kv: kv[1]['three_months_ago'], reverse=True)
-    top10_3m = sorted_by_3m[:10]
+    top10_3m = sorted_by_3m[:20]
     top10_3m_symbols = [t for t, _ in top10_3m]
     enriched_3m = enrich_top10(top10_3m_symbols, ticker_info)
     three_months_ago_top10 = []
@@ -162,9 +162,9 @@ if __name__ == '__main__':
             'vol_z_60d': vals.get('vol_z_60d')
         })
 
-    four_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'four_months_ago')
-    five_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'five_months_ago')
-    six_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'six_months_ago')
+    four_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'four_months_ago', 20)
+    five_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'five_months_ago', 20)
+    six_months_ago_top10 = build_historical_top10(returns_sp500, ticker_info, 'six_months_ago', 20)
     
     # Compute breakouts
     breakouts_sp500 = compute_breakouts(returns_sp500)
@@ -196,7 +196,7 @@ if __name__ == '__main__':
         [row.get('sector') for row in sector_performance[:3]],
         breakouts_sp500,
     )
-    rotation_selection = select_rotation_tickers(rotation_candidates)
+    rotation_selection = select_rotation_tickers(rotation_candidates, 20)
 
     write_cache(
         final,

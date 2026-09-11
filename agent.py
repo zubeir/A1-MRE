@@ -366,13 +366,13 @@ def enrich_top10(top_tickers, ticker_info):
     return enriched
 
 
-def build_historical_top10(returns_sp500, ticker_info, return_key):
+def build_historical_top10(returns_sp500, ticker_info, return_key, limit=20):
     """Build a historical top-10 list for a calculated return field."""
     filtered = {
         t: values for t, values in returns_sp500.items()
         if values.get(return_key) is not None and not math.isnan(values.get(return_key))
     }
-    sorted_items = sorted(filtered.items(), key=lambda item: item[1][return_key], reverse=True)[:10]
+    sorted_items = sorted(filtered.items(), key=lambda item: item[1][return_key], reverse=True)[:limit]
     enriched = enrich_top10([ticker for ticker, _ in sorted_items], ticker_info)
     result = []
     for (ticker, values), meta in zip(sorted_items, enriched):
@@ -475,7 +475,7 @@ def compute_sector_performance(returns_dict, ticker_info):
     return out
 
 
-def compute_breakouts(returns_dict, top_n=10):
+def compute_breakouts(returns_dict, top_n=20):
     """Compute top breakouts: stocks where last_price > 52_week_high, sorted by breakout pct desc."""
     breakouts = []
     for t, vals in returns_dict.items():
@@ -608,7 +608,7 @@ def run_loop(interval_seconds=60):
             filtered = {t: v for t, v in returns_sp500.items() if v.get('mtd') is not None and not math.isnan(v.get('mtd'))}
             # sort by mtd desc
             sorted_by_mtd = sorted(filtered.items(), key=lambda kv: kv[1]['mtd'], reverse=True)
-            top10 = sorted_by_mtd[:10]
+            top10 = sorted_by_mtd[:20]
             top10_symbols = [t for t, v in top10]
             # compute sector favor across available tickers
             sector_map = compute_sector_favor(returns_sp500, ticker_info)
@@ -679,7 +679,7 @@ def run_loop(interval_seconds=60):
 
             filtered_lm = {t: v for t, v in returns_sp500.items() if v.get('last_month') is not None and not math.isnan(v.get('last_month'))}
             sorted_by_lm = sorted(filtered_lm.items(), key=lambda kv: kv[1]['last_month'], reverse=True)
-            top10_lm = sorted_by_lm[:10]
+            top10_lm = sorted_by_lm[:20]
             top10_lm_symbols = [t for t, _ in top10_lm]
             enriched_lm = enrich_top10(top10_lm_symbols, ticker_info)
             last_month_top10 = []
@@ -702,7 +702,7 @@ def run_loop(interval_seconds=60):
 
             filtered_2m = {t: v for t, v in returns_sp500.items() if v.get('two_months_ago') is not None and not math.isnan(v.get('two_months_ago'))}
             sorted_by_2m = sorted(filtered_2m.items(), key=lambda kv: kv[1]['two_months_ago'], reverse=True)
-            top10_2m = sorted_by_2m[:10]
+            top10_2m = sorted_by_2m[:20]
             top10_2m_symbols = [t for t, _ in top10_2m]
             enriched_2m = enrich_top10(top10_2m_symbols, ticker_info)
             two_months_ago_top10 = []
@@ -726,7 +726,7 @@ def run_loop(interval_seconds=60):
 
             filtered_3m = {t: v for t, v in returns_sp500.items() if v.get('three_months_ago') is not None and not math.isnan(v.get('three_months_ago'))}
             sorted_by_3m = sorted(filtered_3m.items(), key=lambda kv: kv[1]['three_months_ago'], reverse=True)
-            top10_3m = sorted_by_3m[:10]
+            top10_3m = sorted_by_3m[:20]
             top10_3m_symbols = [t for t, _ in top10_3m]
             enriched_3m = enrich_top10(top10_3m_symbols, ticker_info)
             three_months_ago_top10 = []
@@ -782,7 +782,7 @@ def run_loop(interval_seconds=60):
                 [row.get('sector') for row in sector_performance[:3]],
                 breakouts_sp500,
             )
-            rotation_selection = select_rotation_tickers(rotation_candidates)
+            rotation_selection = select_rotation_tickers(rotation_candidates, 20)
 
             write_cache(
                 final,
