@@ -3,6 +3,8 @@ Top 10 S&P MTD Dashboard
 This small project contains:
 - `agent.py`: background updater that computes MTD/YTD returns for the S&P 500 and writes `cache.json`.
 - `app.py`: Streamlit dashboard that reads `cache.json` and displays the top 10 MTD performers.
+- `data/cache_seed.json`: tracked startup snapshot used when Streamlit Cloud recreates its container and runtime files are gone.
+- `cache_restart_change_help.md`: explanation of the cache restart fix, deployment steps, and verification.
 - `requirements.txt`: Python dependencies.
 
 Quick start (Windows PowerShell):
@@ -66,8 +68,12 @@ Notes and next steps:
 - `agent.py` downloads historic prices for the full S&P 500. That can take some seconds/minutes on first run.
 - For production always-on use, create a Windows Scheduled Task or use a process supervisor (nssm) to keep `agent.py` running.
 - You can tune `--interval` in seconds to control how often the agent updates.
-- The Streamlit app auto-refreshes every 60 seconds; change `AUTO_REFRESH_SECONDS` in `app.py` if you want a different cadence.
+- The Streamlit app reloads at 8:30 AM, hourly from 9:30 AM through 4:30 PM, and at 5:00 PM Eastern on weekdays. It rereads the cache; this does not download market data unless the local agent or setup script updates the cache.
+- Scheduled browser reloads require the dashboard page to remain open; browser or Streamlit Cloud sleep can delay a reload until the page becomes active.
 - SSL configuration is in `.streamlit/config.toml`; modify as needed for your setup.
+
+Deployment note:
+- Streamlit Cloud may discard files created while the app is running. The app restores `data/cache_seed.json` automatically instead of showing a cache-missing error; the agent/setup script replaces it with fresh runtime data.
 
 Privacy and data:
 - Data is fetched from Yahoo Finance via the `yfinance` package.

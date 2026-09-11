@@ -1,0 +1,23 @@
+{
+  "last_updated_utc": "2026-08-31T14:40:56.390211Z",
+  "data": [
+    {"symbol": "MRNA", "longName": "Moderna", "sector": "Health Care", "mtd": 1.5761, "qtd": 1.0166, "ytd": 3.7887, "last_price": 141.22},
+    {"symbol": "PLTR", "longName": "Palantir Technologies", "sector": "Information Technology", "mtd": 0.5046, "qtd": 0.5870, "ytd": 0.0417, "last_price": 185.16},
+    {"symbol": "CRM", "longName": "Salesforce", "sector": "Information Technology", "mtd": 0.4078, "qtd": 0.6536, "ytd": -0.0221, "last_price": 259.06},
+    {"symbol": "VEEV", "longName": "Veeva Systems", "sector": "Health Care", "mtd": 0.3983, "qtd": 0.6056, "ytd": 0.2765, "last_price": 284.95},
+    {"symbol": "PSKY", "longName": "Paramount Skydance Corporation", "sector": "Communication Services", "mtd": 0.3775, "qtd": 0.1121, "ytd": -0.1817, "last_price": 10.97},
+    {"symbol": "NEM", "longName": "Newmont", "sector": "Materials", "mtd": 0.3387, "qtd": 0.3431, "ytd": 0.2563, "last_price": 125.44},
+    {"symbol": "SMCI", "longName": "Supermicro", "sector": "Information Technology", "mtd": 0.3092, "qtd": 0.2676, "ytd": 0.2702, "last_price": 37.18},
+    {"symbol": "IT", "longName": "Gartner", "sector": "Information Technology", "mtd": 0.3075, "qtd": 0.5233, "ytd": -0.2173, "last_price": 197.46},
+    {"symbol": "NOW", "longName": "ServiceNow", "sector": "Information Technology", "mtd": 0.3058, "qtd": 0.4629, "ytd": -0.0519, "last_price": 145.24},
+    {"symbol": "LITE", "longName": "Lumentum", "sector": "Information Technology", "mtd": 0.2622, "qtd": 0.0502, "ytd": 1.4448, "last_price": 901.11}
+  ],
+  "breakouts": {"sp500": [], "dow": [], "nasdaq": []},
+  "sector_performance": [],
+  "last_month_top10": [],
+  "two_months_ago_top10": [],
+  "three_months_ago_top10": [],
+  "four_months_ago_top10": [],
+  "five_months_ago_top10": [],
+  "six_months_ago_top10": []
+}

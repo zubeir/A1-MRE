@@ -125,4 +125,7 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
+# cache.json is intentionally ignored because it is generated at runtime.
+# The tracked data/cache_seed.json is the Cloud restart fallback.
 cache.json
+cache.json.tmp

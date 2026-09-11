@@ -14,6 +14,7 @@ import base64
 import streamlit.components.v1 as components
 import calendar
 from top10_rotation import score_rotation_candidates, select_rotation_tickers, record_rotation_confirmation
+from cache_utils import cache_age_minutes, ensure_cache_file, is_market_open_et
 try:
     from st_aggrid import AgGrid
     from st_aggrid.grid_options_builder import GridOptionsBuilder
@@ -33,7 +34,10 @@ except Exception:
 
 
 CACHE_FILE = os.path.join(os.path.dirname(__file__), 'cache.json')
+BUNDLED_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'data', 'cache_seed.json')
+CHANGE_HELP_FILE = os.path.join(os.path.dirname(__file__), 'cache_restart_change_help.md')
 PROSPECTUS_DIR = os.path.join(os.path.dirname(__file__), 'prospectus')
+
 
 import os
 import subprocess
@@ -42,6 +46,17 @@ import sys
 # Add a button in the sidebar
 with st.sidebar:
     st.subheader("Admin Controls")
+    st.markdown('[View cache restart change help](#cache-restart-change-help)')
+    if os.path.exists(CHANGE_HELP_FILE):
+        with open(CHANGE_HELP_FILE, 'r', encoding='utf-8') as help_handle:
+            change_help_markdown = help_handle.read()
+        st.download_button(
+            'Download change help',
+            data=change_help_markdown,
+            file_name='cache_restart_change_help.md',
+            mime='text/markdown',
+            key='download_cache_restart_help',
+        )
     if st.button("Run Setup Script"):
         with st.spinner("Running python run_once.py..."):
             try:
@@ -593,74 +608,69 @@ st.markdown(
     """
     <script>
     (function() {
-      const TZ = 'America/New_York';
-      const FALLBACK_MS = 20 * 60 * 1000;
-      const SCHEDULE = [
-        { h: 10, m: 30 },
-        { h: 13, m: 0 },
-        { h: 16, m: 30 },
-      ];
+            // Reload at 08:30, hourly during the regular session, and at 17:00 ET.
+            // Reloading rereads the cache; the updater/setup script fetches market data.
+            const TZ = 'America/New_York';
+            const TARGET_MINUTES = [510, 570, 630, 690, 750, 810, 870, 930, 990, 1020];
 
-      const getParts = (dateObj) => {
-        try {
-          const fmt = new Intl.DateTimeFormat('en-US', {
-            timeZone: TZ,
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', second: '2-digit',
-            hour12: false,
-          });
-          const parts = fmt.formatToParts(dateObj);
-          const map = {};
-          parts.forEach(p => { if (p.type !== 'literal') map[p.type] = p.value; });
-          return {
-            year: parseInt(map.year, 10),
-            month: parseInt(map.month, 10),
-            day: parseInt(map.day, 10),
-            hour: parseInt(map.hour, 10),
-            minute: parseInt(map.minute, 10),
-            second: parseInt(map.second, 10),
-          };
-        } catch (e) {
-          return null;
-        }
-      };
+            const getParts = () => {
+                const fmt = new Intl.DateTimeFormat('en-US', {
+                    timeZone: TZ,
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+                });
+                const parts = {};
+                fmt.formatToParts(new Date()).forEach(part => {
+                    if (part.type !== 'literal') parts[part.type] = part.value;
+                });
+                return {
+                    year: parts.year,
+                    month: parts.month,
+                    day: parts.day,
+                    weekday: parts.weekday,
+                    hour: parseInt(parts.hour, 10),
+                    minute: parseInt(parts.minute, 10),
+                    second: parseInt(parts.second, 10),
+                };
+            };
 
-      const msUntilNextRefresh = () => {
-        const now = new Date();
-        const p = getParts(now);
-        if (!p) return FALLBACK_MS;
+            const checkRefresh = () => {
+                try {
+                    const parts = getParts();
+                    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                    const minuteOfDay = parts.hour * 60 + parts.minute;
+                    if (!weekdays.includes(parts.weekday) || !TARGET_MINUTES.includes(minuteOfDay)) return;
+                      const refreshKey = `${parts.year}-${parts.month}-${parts.day}-${minuteOfDay}`;
+                    if (localStorage.getItem('a1mre_last_refresh_key') === refreshKey) return;
+                    localStorage.setItem('a1mre_last_refresh_key', refreshKey);
+                    location.reload();
+                } catch (e) { console.debug('scheduled refresh failed', e); }
+            };
 
-        const nowMinutes = p.hour * 60 + p.minute + (p.second / 60.0);
-        const today = new Date(p.year, p.month - 1, p.day);
-
-        for (const t of SCHEDULE) {
-          const targetMinutes = t.h * 60 + t.m;
-          if (nowMinutes < targetMinutes) {
-            const deltaMin = targetMinutes - nowMinutes;
-            return Math.max(1000, Math.floor(deltaMin * 60 * 1000));
-          }
-        }
-
-        // After last scheduled time, schedule the first time tomorrow
-        const first = SCHEDULE[0];
-        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-        const tomorrowMidnight = tomorrow.getTime();
-        const targetMin = first.h * 60 + first.m;
-        return Math.max(1000, Math.floor((targetMin - nowMinutes + 24 * 60) * 60 * 1000));
-      };
-
-      const delay = msUntilNextRefresh();
-      setTimeout(() => location.reload(), delay);
+            checkRefresh();
+            setInterval(checkRefresh, 15000);
     })();
     </script>
     """,
     unsafe_allow_html=True,
 )
-if not os.path.exists(CACHE_FILE):
-    st.warning('Cache missing — run the agent or `python run_once.py` to populate data.')
+
+if os.path.exists(CHANGE_HELP_FILE):
+    st.markdown('<a id="cache-restart-change-help"></a>', unsafe_allow_html=True)
+    with st.expander('Cache Restart Change Help', expanded=False):
+        st.markdown(change_help_markdown)
+
+cache_restored = ensure_cache_file(CACHE_FILE, BUNDLED_CACHE_FILE)
+cache_path = CACHE_FILE if os.path.exists(CACHE_FILE) else BUNDLED_CACHE_FILE
+if not os.path.exists(cache_path):
+    st.error('No cache snapshot is available. Run the setup script once, then redeploy the app.')
     st.stop()
 
-payload = json.load(open(CACHE_FILE, 'r', encoding='utf-8'))
+if cache_restored:
+    st.info('Using the bundled data snapshot after a Cloud restart. Run the setup script to replace it with fresh market data.')
+
+with open(cache_path, 'r', encoding='utf-8') as cache_handle:
+    payload = json.load(cache_handle)
 last = payload.get('last_updated_utc')
 try:
     dt = datetime.fromisoformat(last.replace('Z', '+00:00'))
@@ -672,6 +682,12 @@ try:
         formatted = dt.strftime('%Y-%m-%d %I:%M %p') + ' UTC'
 except Exception:
     formatted = last
+
+cache_age = cache_age_minutes(last)
+if cache_age is not None and is_market_open_et() and cache_age > 60:
+    st.warning(f'Data may not be latest: cache is approximately {cache_age:.0f} minutes old. Use "Run Setup Script" to refresh it.')
+elif cache_age is not None and cache_age > 60:
+    st.info(f'Market is currently closed. Showing the latest available data from approximately {cache_age:.0f} minutes ago.')
 
 st.markdown(
     """__A1MRE_HERO__""".replace('__A1MRE_HERO__', """

@@ -585,8 +585,12 @@ def write_cache(
         'rotation_candidates': rotation_candidates or [],
         'rotation_selection': rotation_selection or []
     }
-    with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+    # Replace the previous cache only after the complete JSON document is written.
+    # This prevents a Streamlit rerun from observing a partially written file.
+    temp_file = f'{CACHE_FILE}.tmp'
+    with open(temp_file, 'w', encoding='utf-8') as f:
         json.dump(payload, f, indent=2)
+    os.replace(temp_file, CACHE_FILE)
     logging.info(f"Wrote cache to {CACHE_FILE}")
 
 
