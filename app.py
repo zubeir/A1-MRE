@@ -1535,6 +1535,26 @@ if not rotation_df.empty:
     rotation_df['Score'] = rotation_df['rotation_score'].round(2)
     rotation_df['Signal'] = rotation_df['rotation_signal']
 
+    # Build monthly return data mapping from historical cohorts (for use in multiple sections)
+    monthly_return_data = {}
+    historical_cohorts = [
+        (last_month_top10, 'last_month'),
+        (two_months_ago_top10, 'two_months_ago'),
+        (three_months_ago_top10, 'three_months_ago'),
+        (four_months_ago_top10, 'four_months_ago'),
+        (five_months_ago_top10, 'five_months_ago'),
+        (six_months_ago_top10, 'six_months_ago')
+    ]
+    
+    for cohort, return_key in historical_cohorts:
+        if cohort:
+            for record in cohort:
+                symbol = record.get('symbol')
+                if symbol and return_key in record:
+                    if symbol not in monthly_return_data:
+                        monthly_return_data[symbol] = {}
+                    monthly_return_data[symbol][return_key] = record[return_key]
+
     st.subheader('Momentum Persistence')
     colors = {'Green': '#22c55e', 'Yellow': '#eab308', 'Red': '#ef4444'}
     bars = []
@@ -1546,9 +1566,9 @@ if not rotation_df.empty:
 
     # Add monthly breakdown table
     st.subheader('Monthly Appearances Breakdown')
-    st.caption('Shows which months each candidate appeared in the top 10 over the last 6 months.')
+    st.caption('Shows which months each candidate appeared in the top 10 over the last 6 months, with returns for those months.')
     
-    # Build monthly breakdown data
+    # Build monthly breakdown data with returns
     monthly_data = []
     for _, row in rotation_df.iterrows():
         monthly_row = {
@@ -1556,11 +1576,52 @@ if not rotation_df.empty:
             'Total Appearances': int(row['appearance_count_6m'])
         }
         
-        # Get monthly appearances if available
+        # Get monthly appearances and returns
         monthly_appearances = row.get('monthly_appearances', [])
+        symbol = row.get('symbol')
+        return_key_map = ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']
+        
         for i, appeared in enumerate(monthly_appearances):
             col_name = month_labels[i] if i < len(month_labels) else f"Month {i+1}"
-            monthly_row[col_name] = '✓' if appeared else '-'
+            if appeared and symbol and i < len(return_key_map):
+                return_key = return_key_map[i]
+                if symbol in monthly_return_data and return_key in monthly_return_data[symbol]:
+                    return_val = monthly_return_data[symbol][return_key]
+                    if return_val is not None:
+                        monthly_row[col_name] = f"✓ {return_val * 100:.1f}%"
+                    else:
+                        monthly_row[col_name] = "✓ N/A"
+                else:
+                    monthly_row[col_name] = "✓ N/A"
+            else:
+                monthly_row[col_name] = '-'
+        
+        # Calculate total returns
+        all_returns = []
+        top10_returns = []
+        for i, appeared in enumerate(monthly_appearances):
+            if i < len(return_key_map):
+                return_key = return_key_map[i]
+                if symbol in monthly_return_data and return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
+                    all_returns.append(monthly_return_data[symbol][return_key])
+                    if appeared:
+                        top10_returns.append(monthly_return_data[symbol][return_key])
+        
+        if all_returns:
+            total_all = 1.0
+            for r in all_returns:
+                total_all *= (1 + r)
+            monthly_row['Total Return All Months %'] = f"{(total_all - 1.0) * 100:.1f}%"
+        else:
+            monthly_row['Total Return All Months %'] = 'N/A'
+        
+        if top10_returns:
+            total_top10 = 1.0
+            for r in top10_returns:
+                total_top10 *= (1 + r)
+            monthly_row['Total Return Top10 Months %'] = f"{(total_top10 - 1.0) * 100:.1f}%"
+        else:
+            monthly_row['Total Return Top10 Months %'] = 'N/A'
         
         monthly_data.append(monthly_row)
     
@@ -1635,19 +1696,94 @@ if not rotation_df.empty:
     if invest_only:
         filtered = filtered[filtered['Signal'] == 'Invest']
     
-    # Add monthly breakdown columns to the filtered dataframe
+    # Build monthly return data mapping from historical cohorts (for calculations)
+    monthly_return_data = {}
+    historical_cohorts = [
+        (last_month_top10, 'last_month'),
+        (two_months_ago_top10, 'two_months_ago'),
+        (three_months_ago_top10, 'three_months_ago'),
+        (four_months_ago_top10, 'four_months_ago'),
+        (five_months_ago_top10, 'five_months_ago'),
+        (six_months_ago_top10, 'six_months_ago')
+    ]
+    
+    for cohort, return_key in historical_cohorts:
+        if cohort:
+            for record in cohort:
+                symbol = record.get('symbol')
+                if symbol and return_key in record:
+                    if symbol not in monthly_return_data:
+                        monthly_return_data[symbol] = {}
+                    monthly_return_data[symbol][return_key] = record[return_key]
+
+    # Add monthly breakdown columns with return data to the filtered dataframe
     for i, month_label in enumerate(month_labels):
         col_name = month_label if month_label else f"Month {i+1}"
+        return_key_map = ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']
+        return_key = return_key_map[i] if i < len(return_key_map) else None
+        
+        def format_monthly_return(row, return_key):
+            appeared = row.get('monthly_appearances') and i < len(row['monthly_appearances']) and row['monthly_appearances'][i]
+            if not appeared:
+                return '-'
+            symbol = row.get('symbol')
+            if symbol and return_key and symbol in monthly_return_data and return_key in monthly_return_data[symbol]:
+                return_val = monthly_return_data[symbol][return_key]
+                if return_val is not None:
+                    return f"{return_val * 100:.1f}%"
+            return 'N/A'
+        
         filtered[col_name] = filtered.apply(
-            lambda row: '✓' if (row.get('monthly_appearances') and i < len(row['monthly_appearances']) and row['monthly_appearances'][i]) else '-',
+            lambda row: format_monthly_return(row, return_key),
             axis=1
         )
+    
+    # Calculate total return across all available months
+    def calculate_total_return(row):
+        symbol = row.get('symbol')
+        if symbol and symbol in monthly_return_data:
+            returns = []
+            for return_key in ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']:
+                if return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
+                    returns.append(monthly_return_data[symbol][return_key])
+            if returns:
+                # Calculate compound return: (1+r1)*(1+r2)*... - 1
+                total = 1.0
+                for r in returns:
+                    total *= (1 + r)
+                return (total - 1.0) * 100
+        return None
+    
+    # Calculate total return only for months when appeared in top 10
+    def calculate_top10_return(row):
+        symbol = row.get('symbol')
+        monthly_appearances = row.get('monthly_appearances', [])
+        if symbol and symbol in monthly_return_data and monthly_appearances:
+            returns = []
+            return_key_map = ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']
+            for i, appeared in enumerate(monthly_appearances):
+                if appeared and i < len(return_key_map):
+                    return_key = return_key_map[i]
+                    if return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
+                        returns.append(monthly_return_data[symbol][return_key])
+            if returns:
+                # Calculate compound return: (1+r1)*(1+r2)*... - 1
+                total = 1.0
+                for r in returns:
+                    total *= (1 + r)
+                return (total - 1.0) * 100
+        return None
+    
+    filtered['Total Return All Months %'] = filtered.apply(lambda row: f"{calculate_total_return(row):.1f}%" if calculate_total_return(row) is not None else 'N/A', axis=1)
+    filtered['Total Return Top10 Months %'] = filtered.apply(lambda row: f"{calculate_top10_return(row):.1f}%" if calculate_top10_return(row) is not None else 'N/A', axis=1)
     
     table_cols = ['Include', 'Ticker', 'Sector', 'appearance_count_6m', 'MTD Status', 'Sector Aligned', 'Breakout', 'Score', 'Signal']
     # Add monthly columns to table
     for i, month_label in enumerate(month_labels):
         col_name = month_label if month_label else f"Month {i+1}"
         table_cols.append(col_name)
+    # Add total return columns
+    table_cols.extend(['Total Return All Months %', 'Total Return Top10 Months %'])
     
     edited = st.data_editor(filtered[table_cols], hide_index=True, use_container_width=True, disabled=table_cols[1:], column_config={'Include': st.column_config.CheckboxColumn('Include in Top-10'), 'Score': st.column_config.NumberColumn('Score', format='%.2f')}, key='rotation_candidates_editor')
     selected_symbols = edited.loc[edited['Include'], 'Ticker'].tolist() if not edited.empty else []
