@@ -1537,6 +1537,7 @@ if not rotation_df.empty:
 
     # Build monthly return data mapping from historical cohorts (for use in multiple sections)
     monthly_return_data = {}
+    monthly_top10_symbols = {}
     historical_cohorts = [
         (last_month_top10, 'last_month'),
         (two_months_ago_top10, 'two_months_ago'),
@@ -1548,12 +1549,15 @@ if not rotation_df.empty:
     
     for cohort, return_key in historical_cohorts:
         if cohort:
+            monthly_top10_symbols[return_key] = set()
             for record in cohort:
                 symbol = record.get('symbol')
-                if symbol and return_key in record:
-                    if symbol not in monthly_return_data:
-                        monthly_return_data[symbol] = {}
-                    monthly_return_data[symbol][return_key] = record[return_key]
+                if symbol:
+                    monthly_top10_symbols[return_key].add(symbol)
+                    if return_key in record:
+                        if symbol not in monthly_return_data:
+                            monthly_return_data[symbol] = {}
+                        monthly_return_data[symbol][return_key] = record[return_key]
 
     st.subheader('Momentum Persistence')
     colors = {'Green': '#22c55e', 'Yellow': '#eab308', 'Red': '#ef4444'}
@@ -1576,37 +1580,43 @@ if not rotation_df.empty:
             'Total Appearances': int(row['appearance_count_6m'])
         }
         
-        # Get monthly appearances and returns
-        monthly_appearances = row.get('monthly_appearances', [])
+        # Get monthly appearances by checking actual historical top 10 data
         symbol = row.get('symbol')
         return_key_map = ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']
         
-        for i, appeared in enumerate(monthly_appearances):
+        # Count actual appearances and get returns
+        actual_appearances = 0
+        all_returns = []
+        top10_returns = []
+        
+        for i, return_key in enumerate(return_key_map):
             col_name = month_labels[i] if i < len(month_labels) else f"Month {i+1}"
-            if appeared and symbol and i < len(return_key_map):
-                return_key = return_key_map[i]
+            
+            # Check if symbol actually appeared in this month's top 10
+            appeared = symbol in monthly_top10_symbols.get(return_key, set())
+            
+            if appeared:
+                actual_appearances += 1
                 if symbol in monthly_return_data and return_key in monthly_return_data[symbol]:
                     return_val = monthly_return_data[symbol][return_key]
                     if return_val is not None:
                         monthly_row[col_name] = f"✓ {return_val * 100:.1f}%"
+                        top10_returns.append(return_val)
                     else:
                         monthly_row[col_name] = "✓ N/A"
                 else:
                     monthly_row[col_name] = "✓ N/A"
             else:
                 monthly_row[col_name] = '-'
+            
+            # Get return for total calculation if available
+            if symbol in monthly_return_data and return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
+                all_returns.append(monthly_return_data[symbol][return_key])
+        
+        # Update actual appearance count
+        monthly_row['Total Appearances'] = actual_appearances
         
         # Calculate total returns
-        all_returns = []
-        top10_returns = []
-        for i, appeared in enumerate(monthly_appearances):
-            if i < len(return_key_map):
-                return_key = return_key_map[i]
-                if symbol in monthly_return_data and return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
-                    all_returns.append(monthly_return_data[symbol][return_key])
-                    if appeared:
-                        top10_returns.append(monthly_return_data[symbol][return_key])
-        
         if all_returns:
             total_all = 1.0
             for r in all_returns:
@@ -1696,26 +1706,17 @@ if not rotation_df.empty:
     if invest_only:
         filtered = filtered[filtered['Signal'] == 'Invest']
     
-    # Build monthly return data mapping from historical cohorts (for calculations)
-    monthly_return_data = {}
-    historical_cohorts = [
-        (last_month_top10, 'last_month'),
-        (two_months_ago_top10, 'two_months_ago'),
-        (three_months_ago_top10, 'three_months_ago'),
-        (four_months_ago_top10, 'four_months_ago'),
-        (five_months_ago_top10, 'five_months_ago'),
-        (six_months_ago_top10, 'six_months_ago')
-    ]
+    # Update appearance count based on actual historical data
+    def count_actual_appearances(symbol):
+        count = 0
+        return_key_map = ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']
+        for return_key in return_key_map:
+            if symbol in monthly_top10_symbols.get(return_key, set()):
+                count += 1
+        return count
     
-    for cohort, return_key in historical_cohorts:
-        if cohort:
-            for record in cohort:
-                symbol = record.get('symbol')
-                if symbol and return_key in record:
-                    if symbol not in monthly_return_data:
-                        monthly_return_data[symbol] = {}
-                    monthly_return_data[symbol][return_key] = record[return_key]
-
+    filtered['appearance_count_6m'] = filtered['symbol'].apply(count_actual_appearances)
+    
     # Add monthly breakdown columns with return data to the filtered dataframe
     for i, month_label in enumerate(month_labels):
         col_name = month_label if month_label else f"Month {i+1}"
@@ -1723,10 +1724,11 @@ if not rotation_df.empty:
         return_key = return_key_map[i] if i < len(return_key_map) else None
         
         def format_monthly_return(row, return_key):
-            appeared = row.get('monthly_appearances') and i < len(row['monthly_appearances']) and row['monthly_appearances'][i]
+            symbol = row.get('symbol')
+            # Check if symbol actually appeared in this month's top 10
+            appeared = symbol in monthly_top10_symbols.get(return_key, set()) if return_key else False
             if not appeared:
                 return '-'
-            symbol = row.get('symbol')
             if symbol and return_key and symbol in monthly_return_data and return_key in monthly_return_data[symbol]:
                 return_val = monthly_return_data[symbol][return_key]
                 if return_val is not None:
@@ -1757,15 +1759,14 @@ if not rotation_df.empty:
     # Calculate total return only for months when appeared in top 10
     def calculate_top10_return(row):
         symbol = row.get('symbol')
-        monthly_appearances = row.get('monthly_appearances', [])
-        if symbol and symbol in monthly_return_data and monthly_appearances:
+        if symbol and symbol in monthly_return_data:
             returns = []
             return_key_map = ['last_month', 'two_months_ago', 'three_months_ago', 'four_months_ago', 'five_months_ago', 'six_months_ago']
-            for i, appeared in enumerate(monthly_appearances):
-                if appeared and i < len(return_key_map):
-                    return_key = return_key_map[i]
-                    if return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
-                        returns.append(monthly_return_data[symbol][return_key])
+            for return_key in return_key_map:
+                # Check if symbol actually appeared in this month's top 10
+                appeared = symbol in monthly_top10_symbols.get(return_key, set())
+                if appeared and return_key in monthly_return_data[symbol] and monthly_return_data[symbol][return_key] is not None:
+                    returns.append(monthly_return_data[symbol][return_key])
             if returns:
                 # Calculate compound return: (1+r1)*(1+r2)*... - 1
                 total = 1.0
