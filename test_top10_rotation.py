@@ -15,8 +15,12 @@ from top10_rotation import (
 def test_persistence_counts_unique_monthly_appearances():
     cohorts = [[{"symbol": "AAA"}, {"symbol": "AAA"}, {"symbol": "BBB"}], [{"symbol": "AAA"}], [{"symbol": "CCC"}]]
     result = calculate_persistence(cohorts)
-    assert result["AAA"] == {"appearance_count_6m": 2, "appearance_score": 67}
+    assert result["AAA"]["appearance_count_6m"] == 2
+    assert result["AAA"]["appearance_score"] == 67
+    assert result["AAA"]["monthly_appearances"] == [True, True, False]  # Appeared in months 0 and 1
     assert result["BBB"]["appearance_score"] == 33
+    assert result["BBB"]["monthly_appearances"] == [True, False, False]  # Appeared only in month 0
+    assert result["CCC"]["monthly_appearances"] == [False, False, True]  # Appeared only in month 2
 
 
 def test_mtd_classification():
@@ -37,6 +41,7 @@ def test_composite_score_and_signal():
     assert row["appearance_count_6m"] == 6
     assert row["rotation_score"] == 100.0
     assert row["rotation_signal"] == SIGNAL_INVEST
+    assert row["monthly_appearances"] == [True] * 6  # Appeared in all 6 months
 
 
 def test_signal_thresholds_and_fallback_selection():
@@ -97,3 +102,14 @@ def test_historical_candidates_included_in_pool():
     # CCC should have current data from current_dataset, not historical
     ccc_row = next(row for row in rows if row["symbol"] == "CCC")
     assert ccc_row["mtd"] == 0.02, "CCC should use current data (0.02), not historical (0.15)"
+    
+    # Test monthly appearances tracking
+    aaa_row = next(row for row in rows if row["symbol"] == "AAA")
+    assert "monthly_appearances" in aaa_row, "AAA should have monthly appearances data"
+    assert len(aaa_row["monthly_appearances"]) == 3, "AAA should have 3 months of appearance data"
+    # AAA appeared in current (month 0) but not in historical cohorts
+    assert aaa_row["monthly_appearances"] == [True, False, False], "AAA should appear only in current month"
+    
+    # CCC appeared in historical month 0 but not current
+    ccc_row = next(row for row in rows if row["symbol"] == "CCC")
+    assert ccc_row["monthly_appearances"] == [False, True, False], "CCC should appear only in historical month 0"

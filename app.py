@@ -1510,6 +1510,22 @@ display_df = df[display_cols].copy()
 # Quantified Top-10 Momentum Sleeve
 st.header('Top-10 Momentum Sleeve — Rotation Candidates')
 rotation_df = pd.DataFrame(rotation_candidates)
+
+# Create month labels based on cache data (used in multiple sections)
+month_labels = []
+for i, (year, month) in enumerate([
+    (last_month_year, last_month_month),
+    (two_months_ago_year, two_months_ago_month),
+    (three_months_ago_year, three_months_ago_month),
+    (four_months_ago_year, four_months_ago_month),
+    (five_months_ago_year, five_months_ago_month),
+    (six_months_ago_year, six_months_ago_month),
+]):
+    if year and month:
+        month_labels.append(f"{calendar.month_abbr[month]} {year}")
+    else:
+        month_labels.append(f"Month {i+1}")
+
 if not rotation_df.empty:
     rotation_df['Ticker'] = rotation_df['symbol']
     rotation_df['Sector'] = rotation_df.get('sector', '')
@@ -1527,6 +1543,30 @@ if not rotation_df.empty:
         bars.append(f"<div style='display:flex;align-items:center;gap:8px;margin:4px 0'><b style='width:52px'>{row['Ticker']}</b><div style='height:18px;width:{width:.1f}%;background:{colors.get(row['mtd_status'], '#94a3b8')};border-radius:4px'></div><span>{int(row['appearance_count_6m'])}/6</span></div>")
     st.markdown(''.join(bars), unsafe_allow_html=True)
     st.caption('Bar color: 🟢 positive MTD, 🟡 flat MTD, 🔴 negative MTD.')
+
+    # Add monthly breakdown table
+    st.subheader('Monthly Appearances Breakdown')
+    st.caption('Shows which months each candidate appeared in the top 10 over the last 6 months.')
+    
+    # Build monthly breakdown data
+    monthly_data = []
+    for _, row in rotation_df.iterrows():
+        monthly_row = {
+            'Ticker': row['Ticker'],
+            'Total Appearances': int(row['appearance_count_6m'])
+        }
+        
+        # Get monthly appearances if available
+        monthly_appearances = row.get('monthly_appearances', [])
+        for i, appeared in enumerate(monthly_appearances):
+            col_name = month_labels[i] if i < len(month_labels) else f"Month {i+1}"
+            monthly_row[col_name] = '✓' if appeared else '-'
+        
+        monthly_data.append(monthly_row)
+    
+    monthly_df = pd.DataFrame(monthly_data)
+    if not monthly_df.empty:
+        st.dataframe(monthly_df, hide_index=True, use_container_width=True)
 
     st.subheader('How the Rotation Score Is Calculated')
     st.latex(r'\text{Score} = 0.4(\text{Persistence}) + 0.3(\text{MTD}) + 0.2(\text{Sector}) + 0.1(\text{Breakout})')
@@ -1594,7 +1634,21 @@ if not rotation_df.empty:
         filtered = filtered[filtered['breakout_52w_high']]
     if invest_only:
         filtered = filtered[filtered['Signal'] == 'Invest']
+    
+    # Add monthly breakdown columns to the filtered dataframe
+    for i, month_label in enumerate(month_labels):
+        col_name = month_label if month_label else f"Month {i+1}"
+        filtered[col_name] = filtered.apply(
+            lambda row: '✓' if (row.get('monthly_appearances') and i < len(row['monthly_appearances']) and row['monthly_appearances'][i]) else '-',
+            axis=1
+        )
+    
     table_cols = ['Include', 'Ticker', 'Sector', 'appearance_count_6m', 'MTD Status', 'Sector Aligned', 'Breakout', 'Score', 'Signal']
+    # Add monthly columns to table
+    for i, month_label in enumerate(month_labels):
+        col_name = month_label if month_label else f"Month {i+1}"
+        table_cols.append(col_name)
+    
     edited = st.data_editor(filtered[table_cols], hide_index=True, use_container_width=True, disabled=table_cols[1:], column_config={'Include': st.column_config.CheckboxColumn('Include in Top-10'), 'Score': st.column_config.NumberColumn('Score', format='%.2f')}, key='rotation_candidates_editor')
     selected_symbols = edited.loc[edited['Include'], 'Ticker'].tolist() if not edited.empty else []
     selected_rows = rotation_df[rotation_df['Ticker'].isin(selected_symbols)].sort_values('Score', ascending=False).to_dict('records')

@@ -29,18 +29,27 @@ def calculate_persistence(cohorts: Sequence[Iterable], max_months: int = 6) -> d
     """
     usable = list(cohorts or [])[:max_months]
     counts: dict[str, int] = {}
-    for cohort in usable:
+    monthly_appearances: dict[str, list[bool]] = {}
+    
+    for month_idx, cohort in enumerate(usable):
         seen = set()
         for record in cohort or []:
             symbol = _symbol(record) if isinstance(record, Mapping) else str(record).strip().upper()
             if symbol and symbol not in seen:
                 counts[symbol] = counts.get(symbol, 0) + 1
                 seen.add(symbol)
+                
+                # Track which months each symbol appeared in
+                if symbol not in monthly_appearances:
+                    monthly_appearances[symbol] = [False] * len(usable)
+                monthly_appearances[symbol][month_idx] = True
+    
     denominator = max(len(usable), 1)
     return {
         symbol: {
             "appearance_count_6m": count,
             "appearance_score": int(round(count / denominator * 100)),
+            "monthly_appearances": monthly_appearances.get(symbol, []),
         }
         for symbol, count in counts.items()
     }
@@ -80,7 +89,7 @@ def _get_breakout_symbols(breakout_records) -> set[str]:
 def _score_candidate(record, persistence, aligned_sectors, breakout_symbols) -> dict:
     row = dict(record)
     symbol = _symbol(row) or ""
-    appearance = persistence.get(symbol, {"appearance_count_6m": 1, "appearance_score": 0})
+    appearance = persistence.get(symbol, {"appearance_count_6m": 1, "appearance_score": 0, "monthly_appearances": []})
     mtd_status, mtd_score = classify_mtd(row.get("mtd"))
     sector_aligned = _normalise_sector(row.get("sector")) in aligned_sectors
     breakout = symbol in breakout_symbols
@@ -91,6 +100,7 @@ def _score_candidate(record, persistence, aligned_sectors, breakout_symbols) -> 
     row.update({
         "appearance_count_6m": appearance["appearance_count_6m"],
         "appearance_score": appearance["appearance_score"],
+        "monthly_appearances": appearance.get("monthly_appearances", []),
         "mtd_status": mtd_status,
         "mtd_score": mtd_score,
         "sector_aligned": sector_aligned,
