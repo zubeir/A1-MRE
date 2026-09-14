@@ -1038,6 +1038,7 @@ if not rotation_candidates:
          four_months_ago_top10, five_months_ago_top10],
         [row.get('sector') for row in sector_performance[:3]],
         breakouts.get('sp500', []),
+        None,  # No full current dataset available in app.py
     )
 if not rotation_selection:
     rotation_selection = select_rotation_tickers(rotation_candidates, dashboard_limit)

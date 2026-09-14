@@ -775,12 +775,34 @@ def run_loop(interval_seconds=60):
             five_months_ago_year, five_months_ago_month = _add_months(four_months_ago_year, four_months_ago_month, -1)
             six_months_ago_year, six_months_ago_month = _add_months(five_months_ago_year, five_months_ago_month, -1)
 
+            # Build current dataset with all S&P 500 stocks for rotation candidate evaluation
+            # This ensures historical top performers can be evaluated with current data
+            current_dataset = []
+            for ticker, vals in returns_sp500.items():
+                if ticker in ticker_info:
+                    meta = ticker_info[ticker]
+                    current_dataset.append({
+                        'symbol': ticker,
+                        'longName': meta.get('name'),
+                        'sector': meta.get('sector'),
+                        'industry': meta.get('industry'),
+                        'last_price': vals.get('last_price'),
+                        'mtd': vals.get('mtd'),
+                        'ytd': vals.get('ytd'),
+                        'volume': vals.get('volume'),
+                        'avg_volume_20d': vals.get('avg_volume_20d'),
+                        'rel_volume_20d': vals.get('rel_volume_20d'),
+                        'dollar_volume': vals.get('dollar_volume'),
+                        'vol_z_60d': vals.get('vol_z_60d')
+                    })
+            
             rotation_candidates = score_rotation_candidates(
-                final,
+                final,  # Current top performers for persistence calculation
                 [last_month_top10, two_months_ago_top10, three_months_ago_top10,
                  four_months_ago_top10, five_months_ago_top10],
                 [row.get('sector') for row in sector_performance[:3]],
                 breakouts_sp500,
+                current_dataset,  # Broader dataset for evaluating historical candidates
             )
             rotation_selection = select_rotation_tickers(rotation_candidates, 20)
 
